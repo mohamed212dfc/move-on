@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>لوحة تحكم المطعم - نظام الطلبات المتقدم</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Cairo', sans-serif; }
+        .order-card { transition: all 0.2s ease; cursor: pointer; }
+        .order-card:hover { transform: translateY(-3px); box-shadow: 0 15px 30px -10px rgba(0,0,0,0.15); }
+        .status-searching { background: #f1f5f9; color: #475569; border-right: 4px solid #94a3b8; }
+        .status-waiting { background: #fef3c7; color: #92400e; border-right: 4px solid #f59e0b; }
+        .status-delivering { background: #fce7f3; color: #9d174d; border-right: 4px solid #ec4899; }
+        .status-delivered { background: #d1fae5; color: #065f46; border-right: 4px solid #10b981; }
+        .toast { position: fixed; bottom: 25px; right: 25px; z-index: 1100; animation: slideIn 0.3s ease; background: #1e293b; color: white; padding: 12px 24px; border-radius: 50px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .modal-overlay { background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 1050; }
+        .btn-primary { background: linear-gradient(135deg, #4f46e5, #6366f1); }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 20px -5px rgba(79,70,229,0.4); }
+        .otp-display { font-family: monospace; letter-spacing: 8px; font-size: 2rem; font-weight: bold; background: #f1f5f9; padding: 15px; border-radius: 16px; text-align: center; }
+        .copy-btn { cursor: pointer; transition: all 0.2s; }
+        .copy-btn:hover { background: #e0e7ff; }
+        .info-badge {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #4b5563;
+        }
+        .detail-value {
+            color: #1f2937;
+            font-weight: 500;
+        }
+        .amount-to-receive {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .amount-to-pay {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .edit-input {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 6px 12px;
+            width: auto;
+            max-width: 150px;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-gray-100 min-h-screen">
+
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
+        <div class="flex flex-wrap justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">🍕 لوحة تحكم المطعم</h1>
+                <p id="restaurantName" class="text-gray-600 font-semibold">جاري التحميل...</p>
+                <p id="brandName" class="text-sm text-gray-500"></p>
+            </div>
+            <div class="text-left">
+                <p class="text-xs text-gray-500">رصيد المحفظة</p>
+                <p class="text-2xl font-bold text-indigo-600" id="walletBalance">0 <span class="text-sm">ج.م</span></p>
+                <button onclick="logout()" class="mt-2 bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded-lg text-sm transition">🚪 خروج</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-xl p-3 shadow-md border-r-4 border-gray-400">
+            <p class="text-gray-500 text-xs">🔍 قيد البحث</p>
+            <p class="text-xl font-bold text-gray-600" id="searchingOrders">0</p>
+        </div>
+        <div class="bg-white rounded-xl p-3 shadow-md border-r-4 border-amber-500">
+            <p class="text-gray-500 text-xs">⏳ في انتظار المندوب</p>
+            <p class="text-xl font-bold text-amber-600" id="waitingOrders">0</p>
+        </div>
+        <div class="bg-white rounded-xl p-3 shadow-md border-r-4 border-pink-500">
+            <p class="text-gray-500 text-xs">🚚 جاري التوصيل</p>
+            <p class="text-xl font-bold text-pink-600" id="deliveringOrders">0</p>
+        </div>
+        <div class="bg-white rounded-xl p-3 shadow-md border-r-4 border-green-500">
+            <p class="text-gray-500 text-xs">✅ مكتمل</p>
+            <p class="text-xl font-bold text-green-600" id="deliveredOrders">0</p>
+        </div>
+    </div>
+
+    <!-- Add Order Button -->
+    <div class="mb-6">
+        <button onclick="openOrderModal()" class="btn-primary text-white px-6 py-3 rounded-xl shadow-lg transition flex items-center gap-2">
+            <span class="text-xl">➕</span> طلب جديد
+        </button>
+    </div>
+
+    <!-- Orders Tabs -->
+    <div class="bg-white rounded-xl shadow-md mb-4 overflow-hidden">
+        <div class="flex flex-wrap border-b">
+            <button onclick="showOrdersTab('searching')" id="tabSearching" class="tab-btn flex-1 py-3 text-center font-semibold transition-all border-b-3 border-indigo-600 text-indigo-600">🔍 قيد البحث</button>
+            <button onclick="showOrdersTab('waiting')" id="tabWaiting" class="tab-btn flex-1 py-3 text-center font-semibold transition-all border-b-3 border-transparent text-gray-500">⏳ في انتظار المندوب</button>
+            <button onclick="showOrdersTab('delivering')" id="tabDelivering" class="tab-btn flex-1 py-3 text-center font-semibold transition-all border-b-3 border-transparent text-gray-500">🚚 جاري التوصيل</button>
+            <button onclick="showOrdersTab('delivered')" id="tabDelivered" class="tab-btn flex-1 py-3 text-center font-semibold transition-all border-b-3 border-transparent text-gray-500">✅ مكتمل</button>
+        </div>
+    </div>
+
+    <!-- Orders List -->
+    <div id="ordersContainer" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="col-span-full text-center py-12 text-gray-400">📦 جاري تحميل الطلبات...</div>
+    </div>
+</div>
+
+<!-- Modal: إضافة طلب جديد -->
+<div id="orderModal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl w-11/12 max-w-md p-6 shadow-2xl">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-gray-800">➕ طلب جديد</h3>
+            <button onclick="closeOrderModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-semibold mb-2">💰 إجمالي قيمة الطلب</label>
+            <input type="number" id="orderTotal" placeholder="مثال: 150" class="w-full border rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none">
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-semibold mb-2">📍 منطقة التوصيل</label>
+            <select id="deliveryArea" class="w-full border rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none">
+                <option value="">اختر المنطقة</option>
+            </select>
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-semibold mb-2">💳 طريقة الدفع</label>
+            <div class="flex gap-3">
+                <label class="flex-1 flex items-center justify-center gap-2 border rounded-xl p-3 cursor-pointer hover:bg-gray-50">
+                    <input type="radio" name="paymentMethod" value="cash" checked class="w-4 h-4"> 💰 كاش
+                </label>
+                <label class="flex-1 flex items-center justify-center gap-2 border rounded-xl p-3 cursor-pointer hover:bg-gray-50">
+                    <input type="radio" name="paymentMethod" value="visa" class="w-4 h-4"> 💳 فيزا
+                </label>
+            </div>
+        </div>
+        <div id="deliveryFeeDisplay" class="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl text-center">
+            رسوم التوصيل: <span id="deliveryFeeAmount" class="font-bold text-indigo-600 text-lg">0</span> ج.م
+        </div>
+        <div class="flex gap-3">
+            <button onclick="submitOrder()" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl transition">تأكيد الطلب</button>
+            <button onclick="closeOrderModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-xl transition">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: عرض OTP للتوصيل -->
+<div id="otpModal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl w-11/12 max-w-md p-6 shadow-2xl text-center">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-gray-800">🔐 رمز التحقق للمندوب</h3>
+            <button onclick="closeOtpModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl mb-4">
+            <p class="text-sm text-gray-500 mb-2">طلب رقم</p>
+            <p class="text-2xl font-bold text-indigo-700" id="otpOrderNumber">#000</p>
+            
+            <!-- Amount driver will pay to restaurant -->
+            <div class="mt-3 pt-2 border-t border-indigo-100">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-500"> سيتم استلامه من المندوب:</span>
+                    <span id="amountToReceiveFromDriver" class="font-bold text-green-600 text-lg">0 ج.م</span>
+                </div>
+            </div>
+            
+            <div class="otp-display mt-3 flex items-center justify-between gap-2">
+                <span id="otpCodeDisplay" class="flex-1 text-center text-3xl font-mono tracking-widest">000000</span>
+                <button onclick="copyOtpToClipboard()" class="copy-btn bg-gray-200 hover:bg-gray-300 p-2 rounded-lg transition text-sm">
+                    📋 نسخ
+                </button>
+            </div>
+        </div>
+        <div class="bg-yellow-50 p-3 rounded-xl mb-4 text-right">
+            <p class="text-sm text-yellow-800 font-semibold">📌 ملاحظة مهمة:</p>
+            <p class="text-xs text-yellow-700">الطلب سيبقى في حالة "في انتظار المندوب" حتى يقوم المندوب بإدخال هذا الرمز في تطبيقه لتأكيد الاستلام.</p>
+        </div>
+        <p class="text-sm text-gray-500 mb-4">أعط هذا الرمز للمندوب (شفهياً أو عبر الهاتف) لإتمام عملية الاستلام</p>
+        <div class="flex gap-3">
+            <button onclick="closeOtpModal()" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-xl transition">تم</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Order Details with Edit Option -->
+<div id="orderDetailsModal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl w-11/12 max-w-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-5 pb-3 border-b border-gray-200">
+            <h3 class="text-2xl font-black text-gray-800">📋 تفاصيل الطلب</h3>
+            <button onclick="closeOrderDetailsModal()" class="text-gray-400 hover:text-gray-600 text-3xl leading-5 transition">&times;</button>
+        </div>
+        
+        <div id="orderDetailsContent" class="space-y-4">
+            <!-- Dynamic content will be inserted here -->
+        </div>
+        
+        <div id="editActions" class="flex gap-3 mt-6 pt-4 border-t border-gray-200 hidden">
+            <button onclick="saveOrderChanges()" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold transition">
+                💾 حفظ التغييرات
+            </button>
+            <button onclick="cancelEdit()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-xl font-bold transition">
+                إلغاء
+            </button>
+        </div>
+        
+        <div id="normalActions" class="flex gap-3 mt-6 pt-4 border-t border-gray-200">
+            <button onclick="closeOrderDetailsModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-xl font-bold transition">
+                إغلاق
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast hidden"></div>
+<script src="config.js"></script>
+
+<script>
+ const SERVER_URL = "http://192.168.1.2:80";
+    
+// ======================== GLOBALS ========================
+let restaurantData = null;
+let restaurantId = null;
+let currentOrders = [];
+let currentTab = 'searching';
+let deliveryAreasList = [];
+let selectedOrderForEdit = null;
+let isEditing = false;
+
+const token = localStorage.getItem('auth_token');
+if (!token) {
+    alert("يرجى تسجيل الدخول أولاً");
+    window.location.href = '/login.html';
+}
+
+// ======================== CORRECTED CALCULATION FUNCTIONS ========================
+// Calculate amount the restaurant will receive from delivery person (what driver pays restaurant)
+function calculateAmountToReceiveFromDriver(order) {
+    const totalPrice = order.total_price || 0;
+    const deliveryFee = order.delivery_fee || 0;
+    
+    if (order.payment_method === 'cash') {
+        // Cash order: Restaurant receives (total_price - delivery_fee + 10)
+        return totalPrice + 10;
+    } else {
+        // Visa order: Restaurant receives (delivery_fee + 10)
+        return deliveryFee + 10;
+    }
+}
+
+// Calculate driver's profit
+function calculateDriverProfit(order) {
+    const deliveryFee = order.delivery_fee || 0;
+    return deliveryFee + 10;
+}
+
+// Calculate customer total (what they pay)
+function calculateCustomerTotal(order) {
+    const totalPrice = order.total_price || 0;
+    const deliveryFee = order.delivery_fee || 0;
+    return totalPrice + deliveryFee;
+}
+
+// Update OTP modal display
+function updateAmountToReceiveFromDriver(order) {
+    const amountToReceive = calculateAmountToReceiveFromDriver(order);
+    const element = document.getElementById('amountToReceiveFromDriver');
+    if (element) {
+        element.innerHTML = `${amountToReceive} ج.م`;
+    }
+}
+
+// ======================== INITIALIZATION ========================
+async function init() {
+    try {
+        const response = await fetch('${SERVER_URL}/api/restaurant/profile', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (!data.success) {
+            showToast('❌ جلسة غير صالحة', true);
+            localStorage.removeItem('auth_token');
+            setTimeout(() => { window.location.href = '/login.html'; }, 2000);
+            return;
+        }
+        
+        restaurantData = data.restaurant;
+        restaurantId = restaurantData.id;
+        
+        document.getElementById('restaurantName').innerHTML = restaurantData.restaurant_name || 'مطعم';
+        document.getElementById('brandName').innerHTML = restaurantData.brand_name || '';
+        document.getElementById('walletBalance').innerHTML = (restaurantData.money || 0).toFixed(2);
+        
+        await loadDeliveryAreas();
+        await loadOrders();
+        
+        // Auto refresh every 5 seconds
+        setInterval(() => { loadOrders(); }, 5000);
+        
+    } catch (error) {
+        showToast('خطأ في الاتصال بالخادم', true);
+    }
+}
+
+async function loadDeliveryAreas() {
+    try {
+        const response = await fetch(`/api/restaurant/areas/${restaurantId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success && data.areas) {
+            deliveryAreasList = data.areas;
+            const select = document.getElementById('deliveryArea');
+            select.innerHTML = '<option value="">اختر المنطقة</option>';
+            deliveryAreasList.forEach(area => {
+                select.innerHTML += `<option value="${area.id}" data-fee="${area.delivery_fee}">${area.name} - رسوم: ${area.delivery_fee} ج.م</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('Error loading areas:', error);
+    }
+}
+
+// Fix event listener for delivery area change
+document.addEventListener('DOMContentLoaded', function() {
+    const deliveryArea = document.getElementById('deliveryArea');
+    if (deliveryArea) {
+        deliveryArea.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const fee = selectedOption?.getAttribute('data-fee') || 0;
+            document.getElementById('deliveryFeeAmount').innerHTML = fee;
+        });
+    }
+});
+
+async function loadOrders() {
+    try {
+        const response = await fetch(`/api/restaurant/orders/${restaurantId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            currentOrders = data.orders || [];
+            updateStats();
+            filterOrdersByTab();
+        }
+    } catch (error) {
+        console.error('Error loading orders:', error);
+    }
+}
+
+function updateStats() {
+    const searching = currentOrders.filter(o => o.state === 'searching').length;
+    const waiting = currentOrders.filter(o => o.state === 'waiting').length;
+    const delivering = currentOrders.filter(o => o.state === 'delivering').length;
+    const delivered = currentOrders.filter(o => o.state === 'delivered').length;
+    
+    document.getElementById('searchingOrders').innerHTML = searching;
+    document.getElementById('waitingOrders').innerHTML = waiting;
+    document.getElementById('deliveringOrders').innerHTML = delivering;
+    document.getElementById('deliveredOrders').innerHTML = delivered;
+    
+    // Update wallet balance from server
+    if (restaurantData) {
+        document.getElementById('walletBalance').innerHTML = (restaurantData.money || 0).toFixed(2);
+    }
+}
+
+function filterOrdersByTab() {
+    let filtered = [];
+    if (currentTab === 'searching') filtered = currentOrders.filter(o => o.state === 'searching');
+    else if (currentTab === 'waiting') filtered = currentOrders.filter(o => o.state === 'waiting');
+    else if (currentTab === 'delivering') filtered = currentOrders.filter(o => o.state === 'delivering');
+    else if (currentTab === 'delivered') filtered = currentOrders.filter(o => o.state === 'delivered');
+    
+    renderOrders(filtered);
+}
+
+function getStatusText(state) {
+    const states = {
+        'searching': '🔍 جاري البحث عن مندوب',
+        'waiting': '⏳ في انتظار المندوب',
+        'delivering': '🚚 جاري التوصيل للعميل',
+        'delivered': '✅ تم التوصيل'
+    };
+    return states[state] || state;
+}
+
+function getStatusClass(state) {
+    const classes = {
+        'searching': 'status-searching',
+        'waiting': 'status-waiting',
+        'delivering': 'status-delivering',
+        'delivered': 'status-delivered'
+    };
+    return classes[state] || 'status-searching';
+}
+
+function formatDateTime(dateString) {
+    if (!dateString) return '--';
+    const date = new Date(dateString);
+    return date.toLocaleString('ar-EG', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+}
+
+function renderOrders(orders) {
+    const container = document.getElementById('ordersContainer');
+    
+    if (orders.length === 0) {
+        container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-400">📭 لا توجد طلبات في هذا القسم</div>';
+        return;
+    }
+    
+    container.innerHTML = orders.map(order => {
+        const amountToReceive = calculateAmountToReceiveFromDriver(order);
+        const driverProfit = calculateDriverProfit(order);
+        
+        return `
+        <div class="order-card rounded-xl shadow-md p-4 ${getStatusClass(order.state)}" onclick="showOrderDetails(${order.id})">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <span class="text-xs text-gray-500">رقم الطلب</span>
+                    <p class="text-xl font-bold text-gray-800">#${order.order_number}</p>
+                </div>
+                <div class="flex flex-col items-end gap-1">
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold ${getStatusClass(order.state)}">${getStatusText(order.state)}</span>
+                    ${order.delivery_name ? `<span class="text-xs text-gray-500 mt-1">👤 المندوب: ${order.delivery_name}</span>` : ''}
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 text-sm mb-3">
+                <div><span class="text-gray-500">💰 المبلغ:</span> <span class="font-bold text-indigo-600">${order.total_price} ج.م</span></div>
+                <div><span class="text-gray-500">🚚 رسوم التوصيل:</span> <span class="font-semibold">${order.delivery_fee} ج.م</span></div>
+                <div><span class="text-gray-500">📍 المنطقة:</span> <span class="font-semibold">${order.area_name || '-'}</span></div>
+                <div><span class="text-gray-500">💳 الدفع:</span> <span class="font-semibold">${order.payment_method === 'cash' ? 'كاش' : 'فيزا'}</span></div>
+                <div><span class="text-gray-500">💰 سيتم استلامه من المندوب:</span> <span class="font-bold text-green-600">${amountToReceive} ج.م</span></div>
+            </div>
+            ${order.state === 'waiting' ? `
+                <div class="mt-2" onclick="event.stopPropagation()">
+                    <button onclick="generateAndShowOtp(${order.id}, '${order.order_number}')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm transition flex items-center justify-center gap-2">
+                        🔐 إعطاء رمز التحقق للمندوب
+                    </button>
+                    <p class="text-xs text-gray-400 text-center mt-2">
+                        ⚠️ بعد إعطاء الرمز، سيظل الطلب في حالة "في انتظار المندوب" حتى يدخل المندوب الرمز
+                    </p>
+                </div>
+            ` : ''}
+            ${order.state === 'delivering' ? `
+                <div class="mt-2 p-2 bg-blue-50 rounded-lg text-center text-sm text-blue-700">
+                    🚚 الطلب قيد التوصيل للعميل (تم استلامه من المطعم)
+                </div>
+            ` : ''}
+            ${order.state === 'delivered' ? `
+                <div class="mt-2 p-2 bg-green-50 rounded-lg text-center text-sm text-green-700">
+                    ✅ تم التوصيل بنجاح
+                </div>
+            ` : ''}
+        </div>
+    `}).join('');
+}
+
+// ======================== ORDER DETAILS MODAL ========================
+async function showOrderDetails(orderId) {
+    try {
+        const order = currentOrders.find(o => o.id === orderId);
+        if (!order) return;
+        
+        selectedOrderForEdit = { ...order };
+        isEditing = false;
+        
+        await renderOrderDetails(order);
+        
+        document.getElementById('orderDetailsModal').classList.remove('hidden');
+    } catch (error) {
+        console.error('Error showing order details:', error);
+        showToast('خطأ في عرض تفاصيل الطلب', true);
+    }
+}
+
+async function renderOrderDetails(order) {
+    const container = document.getElementById('orderDetailsContent');
+    const canEdit = order.state === 'searching' || order.state === 'waiting';
+    
+    const amountToReceive = calculateAmountToReceiveFromDriver(order);
+    const driverProfit = calculateDriverProfit(order);
+    const customerTotal = calculateCustomerTotal(order);
+    
+    // Get trip information if available
+    let tripInfo = '';
+    if (order.trip_number) {
+        tripInfo = `
+            <div class="detail-row">
+                <span class="detail-label">🚚 رقم الرحلة:</span>
+                <span class="detail-value">#${order.trip_number}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📦 حالة الرحلة:</span>
+                <span class="detail-value">${order.trip_state || '--'}</span>
+            </div>
+        `;
+    }
+    
+    const html = `
+        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl mb-4">
+            <div class="detail-row">
+                <span class="detail-label">🔢 رقم الطلب:</span>
+                <span class="detail-value font-bold text-indigo-600">#${order.order_number}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">🏪 المطعم:</span>
+                <span class="detail-value">${order.restaurant_name || 'غير محدد'}</span>
+            </div>
+            ${tripInfo}
+        </div>
+        
+        <div class="bg-white border rounded-xl p-4">
+            <h4 class="font-bold text-gray-800 mb-3">💰 معلومات مالية</h4>
+            <div class="detail-row">
+                <span class="detail-label">💰 قيمة الطلب (بدون توصيل):</span>
+                ${canEdit && isEditing ? 
+                    `<input type="number" id="editTotalPrice" value="${order.total_price}" class="edit-input" step="0.01"> ج.م` : 
+                    `<span class="detail-value">${order.total_price} ج.م</span>`
+                }
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">🚚 رسوم التوصيل:</span>
+                <span class="detail-value">${order.delivery_fee} ج.م</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">💳 طريقة الدفع:</span>
+                ${canEdit && isEditing ? 
+                    `<select id="editPaymentMethod" class="edit-input">
+                        <option value="cash" ${order.payment_method === 'cash' ? 'selected' : ''}>💰 كاش</option>
+                        <option value="visa" ${order.payment_method === 'visa' ? 'selected' : ''}>💳 فيزا</option>
+                    </select>` : 
+                    `<span class="detail-value">${order.payment_method === 'cash' ? '💰 كاش' : '💳 فيزا'}</span>
+                     ${canEdit && !isEditing ? `<button onclick="startEdit()" class="text-indigo-600 text-sm mr-2">✏️ تعديل</button>` : ''}`
+                }
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">💵 الإجمالي للعميل (مع التوصيل):</span>
+                <span class="detail-value font-bold text-indigo-600">${customerTotal} ج.م</span>
+            </div>
+        </div>
+        
+        <div class="amount-to-receive">
+            <p class="text-sm mb-1">💰 المبلغ الذي ستحصل عليه من المندوب</p>
+            <p class="text-2xl font-bold">${amountToReceive} ج.م</p>
+            <p class="text-xs mt-1 opacity-90">
+                ${order.payment_method === 'cash' ? 
+                    `( قيمة الطلب ${order.total_price}  + 10 عمولة الشركة )` : 
+                    `( رسوم التوصيل ${order.delivery_fee} + 10 عمولة الشركة )`}
+            </p>
+        </div>
+        
+        <div class="bg-white border rounded-xl p-4">
+            <h4 class="font-bold text-gray-800 mb-3">💰 تفاصيل المدفوعات</h4>
+            <div class="detail-row">
+                <span class="detail-label">💵 المندوب سيدفع للمطعم:</span>
+                <span class="detail-value font-bold text-green-600">${amountToReceive} ج.م</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">💰 أرباح المندوب من هذا الطلب:</span>
+                <span class="detail-value font-bold text-blue-600">${driverProfit} ج.م (رسوم توصيل ${order.delivery_fee} + 10 عمولة)</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">🏢 حصة الشركة (10 ج.م):</span>
+                <span class="detail-value font-bold text-orange-600">10 ج.م</span>
+            </div>
+        </div>
+        
+        <div class="bg-white border rounded-xl p-4">
+            <h4 class="font-bold text-gray-800 mb-3">📍 معلومات التوصيل</h4>
+            <div class="detail-row">
+                <span class="detail-label">📍 المنطقة:</span>
+                <span class="detail-value">${order.area_name || 'غير محدد'}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">👤 المندوب:</span>
+                <span class="detail-value">${order.delivery_id || 'لم يتم تعيين مندوب بعد'}</span>
+            </div>
+            ${order.delivery_phone ? `
+            <div class="detail-row">
+                <span class="detail-label">📞 هاتف المندوب:</span>
+                <span class="detail-value">${order.delivery_phone}</span>
+            </div>
+            ` : ''}
+        </div>
+        
+        <div class="bg-white border rounded-xl p-4">
+            <h4 class="font-bold text-gray-800 mb-3">⏱️ الجدول الزمني</h4>
+            <div class="detail-row">
+                <span class="detail-label">📅 وقت إنشاء الطلب:</span>
+                <span class="detail-value">${formatDateTime(order.submit_time)}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">⏰ وقت استلام المندوب:</span>
+                <span class="detail-value">${order.delivery_man_time ? formatDateTime(order.delivery_man_time) : '--'}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">🏪 وقت الاستلام من المطعم:</span>
+                <span class="detail-value">${order.delivery_received_time ? formatDateTime(order.delivery_received_time) : '--'}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">✅ وقت التوصيل للعميل:</span>
+                <span class="detail-value">${order.to_client_time ? formatDateTime(order.to_client_time) : '--'}</span>
+            </div>
+        </div>
+        
+        <div class="bg-white border rounded-xl p-4">
+            <h4 class="font-bold text-gray-800 mb-3">📊 حالة الطلب</h4>
+            <div class="detail-row">
+                <span class="detail-label">📊 الحالة الحالية:</span>
+                <span class="status-badge ${getStatusClass(order.state)}">${getStatusText(order.state)}</span>
+            </div>
+            ${order.otp_code ? `
+            <div class="detail-row">
+                <span class="detail-label">🔐 رمز OTP:</span>
+                <span class="detail-value font-mono font-bold text-green-600">${order.otp_code}</span>
+            </div>
+            ` : ''}
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Show/hide edit actions based on state
+    const editActions = document.getElementById('editActions');
+    const normalActions = document.getElementById('normalActions');
+    
+    if (canEdit && !isEditing) {
+        editActions.classList.add('hidden');
+        normalActions.classList.remove('hidden');
+    } else if (isEditing) {
+        editActions.classList.remove('hidden');
+        normalActions.classList.add('hidden');
+    } else {
+        editActions.classList.add('hidden');
+        normalActions.classList.remove('hidden');
+    }
+}
+
+function startEdit() {
+    if (!selectedOrderForEdit) return;
+    isEditing = true;
+    renderOrderDetails(selectedOrderForEdit);
+}
+
+function cancelEdit() {
+    isEditing = false;
+    renderOrderDetails(selectedOrderForEdit);
+}
+
+async function saveOrderChanges() {
+    if (!selectedOrderForEdit) return;
+    
+    const newTotalPrice = parseFloat(document.getElementById('editTotalPrice')?.value);
+    const newPaymentMethod = document.getElementById('editPaymentMethod')?.value;
+    
+    if (isNaN(newTotalPrice) || newTotalPrice <= 0) {
+        showToast('قيمة الطلب غير صالحة', true);
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/restaurant/update-order', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                order_id: selectedOrderForEdit.id,
+                total_price: newTotalPrice,
+                payment_method: newPaymentMethod
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('✅ تم تحديث الطلب بنجاح');
+            isEditing = false;
+            await loadOrders();
+            // Refresh the order details
+            const updatedOrder = currentOrders.find(o => o.id === selectedOrderForEdit.id);
+            if (updatedOrder) {
+                selectedOrderForEdit = { ...updatedOrder };
+                renderOrderDetails(selectedOrderForEdit);
+            }
+        } else {
+            showToast(data.error || 'حدث خطأ', true);
+        }
+    } catch (error) {
+        showToast('خطأ في الاتصال بالخادم', true);
+    }
+}
+
+function closeOrderDetailsModal() {
+    document.getElementById('orderDetailsModal').classList.add('hidden');
+    selectedOrderForEdit = null;
+    isEditing = false;
+}
+
+// ======================== ORDER MODAL ========================
+function openOrderModal() {
+    document.getElementById('orderModal').classList.remove('hidden');
+    document.getElementById('orderTotal').value = '';
+    document.getElementById('deliveryArea').value = '';
+    document.getElementById('deliveryFeeAmount').innerHTML = '0';
+    document.querySelector('input[name="paymentMethod"][value="cash"]').checked = true;
+}
+
+function closeOrderModal() {
+    document.getElementById('orderModal').classList.add('hidden');
+}
+
+async function submitOrder() {
+    const totalPrice = parseFloat(document.getElementById('orderTotal').value);
+    const areaId = document.getElementById('deliveryArea').value;
+    const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+    
+    if (!totalPrice || totalPrice <= 0) {
+        showToast('الرجاء إدخال قيمة الطلب', true);
+        return;
+    }
+    
+    if (!areaId) {
+        showToast('الرجاء اختيار منطقة التوصيل', true);
+        return;
+    }
+    
+    const selectedArea = deliveryAreasList.find(a => a.id == areaId);
+    const deliveryFee = selectedArea ? selectedArea.delivery_fee : 0;
+    
+    try {
+        const response = await fetch('/api/restaurant/create-order', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                restaurant_id: restaurantId,
+                total_price: totalPrice,
+                delivery_fee: deliveryFee,
+                area_id: parseInt(areaId),
+                payment_method: paymentMethod
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(`✅ تم إنشاء الطلب رقم #${data.order_number} بنجاح`);
+            closeOrderModal();
+            await loadOrders();
+        } else {
+            showToast(data.error || 'حدث خطأ', true);
+        }
+    } catch (error) {
+        showToast('خطأ في الاتصال بالخادم', true);
+    }
+}
+
+// Generate OTP - ONLY creates OTP, does NOT change order state
+async function generateAndShowOtp(orderId, orderNumber) {
+    let button = null;
+    let originalText = '';
+    
+    try {
+        // Get the button from event
+        const event = window.event;
+        if (event && event.target) {
+            button = event.target.closest('button');
+            if (button) {
+                originalText = button.innerHTML;
+                button.innerHTML = '⏳ جاري...';
+                button.disabled = true;
+            }
+        }
+        
+        const response = await fetch('/api/restaurant/generate-otp', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ order_id: orderId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Find the order to display correct amount
+            const order = currentOrders.find(o => o.id === orderId);
+            
+            if (order) {
+                // Update the amount display in OTP modal
+                updateAmountToReceiveFromDriver(order);
+            }
+            
+            const message = data.is_existing ? 
+                '✅ تم استرجاع رمز التحقق الموجود' : 
+                '✅ تم إنشاء رمز التحقق بنجاح';
+            
+            showToast(message);
+            
+            // Show OTP modal
+            document.getElementById('otpOrderNumber').innerHTML = `#${orderNumber}`;
+            document.getElementById('otpCodeDisplay').innerHTML = data.otp_code;
+            document.getElementById('otpModal').classList.remove('hidden');
+            
+            // Refresh orders to show that order is still in waiting state
+            setTimeout(() => loadOrders(), 1000);
+        } else {
+            showToast(data.error || 'لا يمكن إنشاء رمز التحقق', true);
+        }
+    } catch (error) {
+        console.error('Error generating OTP:', error);
+        showToast('خطأ في إنشاء رمز التحقق: ' + error.message, true);
+    } finally {
+        if (button) {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }
+    }
+}
+
+function copyOtpToClipboard() {
+    const otpCode = document.getElementById('otpCodeDisplay').innerText;
+    navigator.clipboard.writeText(otpCode).then(() => {
+        showToast('✅ تم نسخ الرمز بنجاح');
+    }).catch(() => {
+        showToast('❌ فشل نسخ الرمز', true);
+    });
+}
+
+function closeOtpModal() {
+    document.getElementById('otpModal').classList.add('hidden');
+}
+
+// ======================== TABS ========================
+function showOrdersTab(tab) {
+    currentTab = tab;
+    
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('border-indigo-600', 'text-indigo-600');
+        btn.classList.add('border-transparent', 'text-gray-500');
+    });
+    
+    const tabMap = {
+        'searching': 'tabSearching',
+        'waiting': 'tabWaiting',
+        'delivering': 'tabDelivering',
+        'delivered': 'tabDelivered'
+    };
+    
+    const activeTab = document.getElementById(tabMap[tab]);
+    if (activeTab) {
+        activeTab.classList.add('border-indigo-600', 'text-indigo-600');
+        activeTab.classList.remove('border-transparent', 'text-gray-500');
+    }
+    
+    filterOrdersByTab();
+}
+
+// ======================== LOGOUT ========================
+function logout() {
+    localStorage.removeItem('auth_token');
+    showToast('تم تسجيل الخروج بنجاح');
+    setTimeout(() => { window.location.href = '/login.html'; }, 1000);
+}
+
+function showToast(message, isError = false) {
+    let toast = document.getElementById('toast');
+    toast.innerHTML = message;
+    toast.classList.remove('hidden');
+    toast.style.background = isError ? '#ef4444' : '#1e293b';
+    setTimeout(() => toast.classList.add('hidden'), 3000);
+}
+
+// Start the app
+init();
+</script>
+</body>
+</html>
