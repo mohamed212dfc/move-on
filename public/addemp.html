@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إضافة موظف جديد - المنظومة الذكية</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --success: #10b981;
+            --bg-main: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-title: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #cbd5e1;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-main);
+            margin: 0;
+            padding: 40px 20px;
+            color: var(--text-title);
+        }
+
+        .form-container {
+            max-width: 650px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 5px;
+            color: var(--text-title);
+            font-size: 24px;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-top: 0;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #475569;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-sizing: border-box;
+            background: #f8fafc;
+            font-size: 14px;
+            transition: all 0.2s ease-in-out;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        fieldset {
+            border: 1px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 25px;
+            margin-bottom: 25px;
+            background: #fafafa;
+        }
+
+        legend {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--primary);
+            padding: 0 10px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn-submit {
+            background: var(--primary);
+            color: white;
+            width: 100%;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-submit:hover {
+            background: var(--primary-hover);
+        }
+
+        /* نافذة عرض الحساب الجديد المنبثقة */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: 0.3s ease-in-out;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .success-icon {
+            font-size: 40px;
+            color: var(--success);
+            margin-bottom: 15px;
+        }
+
+        .creds-box {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: right;
+        }
+
+        .creds-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .creds-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .creds-value {
+            font-family: monospace;
+            font-weight: bold;
+            color: #166534;
+            font-size: 16px;
+        }
+
+        .btn-close {
+            background: #e2e8f0;
+            color: #475569;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            font-size: 14px;
+        }
+        .btn-close:hover {
+            background: #cbd5e1;
+        }
+    </style>
+</head>
+<body>
+
+<div class="form-container">
+    <h2>👤 إضافة فرد جديد لطاقم العمل</h2>
+    <p class="subtitle">قم بإدخال البيانات الأساسية، وسيتم إنشاء حساب دخول برقم تعريفي مخصص حسب الدور الوظيفي تلقائياً.</p>
+
+    <form id="addEmployeeForm">
+        <div class="form-group">
+            <label for="empName">اسم الموظف بالكامل:</label>
+            <input type="text" id="empName" placeholder="مثال: محمد أحمد علي" required>
+        </div>
+
+        <div class="grid-2">
+            <div class="form-group">
+                <label for="empPhone">رقم الهاتف الفعال:</label>
+                <input type="tel" id="empPhone" placeholder="مثال: 010XXXXXXXX" required>
+            </div>
+
+            <div class="form-group">
+                <label for="empRole">الدور الوظيفي (الصلاحية):</label>
+                <select id="empRole" required>
+                    <option value="">-- اختر الدور --</option>
+                    <option value="delivery">طيار (Delivery - 001)</option>
+                    <option value="manager">مشرف / مدير (Manager - 002)</option>
+                    <option value="administrator">مسؤول نظام (Administrator - 003)</option>
+                </select>
+            </div>
+        </div>
+
+        <fieldset>
+            <legend>📍 ربط الموظف بنطاق جغرافي وتكليفي (اختياري)</legend>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>المكان الرئيسي:</label>
+                    <select id="empPlaceSelect" onchange="filterGroups()">
+                        <option value="">-- اختر المكان --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>المجموعة:</label>
+                    <select id="empGroupSelect" onchange="filterBlocks()">
+                        <option value="">-- اختر المجموعة --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top: 10px;">
+                <div class="form-group">
+                    <label>البلوك / القطاع:</label>
+                    <select id="empBlockSelect" onchange="filterZones()">
+                        <option value="">-- اختر البلوك --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label style="color: var(--primary);">الزون المستهدف الفعال:</label>
+                    <select id="empZoneId">
+                        <option value="">-- اختر الزون النهائي --</option>
+                    </select>
+                </div>
+            </div>
+        </fieldset>
+
+        <button type="submit" class="btn-submit">تأكيد التسجيل وتوليد بيانات الدخول</button>
+    </form>
+</div>
+
+<div class="modal-overlay" id="successModal">
+    <div class="modal-content">
+        <div class="success-icon">🎉</div>
+        <h3 style="margin: 0; color: #1e293b;">تم إنشاء الحساب بنجاح!</h3>
+        <p style="color: var(--text-muted); font-size: 13px; margin-top: 5px;">فيما يلي بيانات الاعتماد الآمنة المخصصة للموظف الجديد:</p>
+        
+        <div class="creds-box">
+            <div class="creds-row">
+                <span>اسم المستخدم (User ID):</span>
+                <span class="creds-value" id="resUsername">---</span>
+            </div>
+            <div class="creds-row" style="margin-top: 12px;">
+                <span>كلمة المرور (Password):</span>
+                <span class="creds-value" id="resPassword">---</span>
+            </div>
+        </div>
+
+        <button type="button" class="btn-close" onclick="closeModal()">إغلاق الواجهة</button>
+    </div>
+</div>
+
+<script>
+    let globalTreeData = {};
+
+    // 1. جلب البيانات الشجرية بالكامل عند تحميل الصفحة لتغذية القوائم المنسدلة
+    async function loadTreeData() {
+        try {
+            const res = await fetch('/api/admin/tree');
+            globalTreeData = await res.json();
+            
+            // تعبئة قائمة الأماكن كخطوة أولى
+            const placeSel = document.getElementById('empPlaceSelect');
+            if (globalTreeData.places) {
+                globalTreeData.places.forEach(p => {
+                    placeSel.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+                });
+            }
+        } catch (err) {
+            console.error("خطأ أثناء جلب البيانات الشجرية:", err);
+            alert("حدث خطأ في الاتصال بالسيرفر أثناء تحميل بيانات النطاقات الجغرافية.");
+        }
+    }
+
+    // 2. تصفية وتعبئة المجموعات بناءً على المكان المختار
+    function filterGroups() {
+        const placeId = parseInt(document.getElementById('empPlaceSelect').value);
+        const groupSel = document.getElementById('empGroupSelect');
+        groupSel.innerHTML = '<option value="">-- اختر المجموعة --</option>';
+        
+        if (!isNaN(placeId) && globalTreeData.groups) {
+            globalTreeData.groups.filter(g => g.place_id === placeId).forEach(g => {
+                groupSel.innerHTML += `<option value="${g.id}">${g.name}</option>`;
+            });
+        }
+        filterBlocks(); // تصفير المستويات الأدنى تلقائياً
+    }
+
+    // 3. تصفية وتعبئة البلوكات بناءً على المجموعة المختارة
+    function filterBlocks() {
+        const groupId = parseInt(document.getElementById('empGroupSelect').value);
+        const blockSel = document.getElementById('empBlockSelect');
+        blockSel.innerHTML = '<option value="">-- اختر البلوك --</option>';
+        
+        if (!isNaN(groupId) && globalTreeData.blocks) {
+            globalTreeData.blocks.filter(b => b.group_id === groupId).forEach(b => {
+                blockSel.innerHTML += `<option value="${b.id}">${b.name}</option>`;
+            });
+        }
+        filterZones(); // تصفير مستوى الزون تلقائياً
+    }
+
+    // 4. تصفية وتعبئة الزونات بناءً على البلوك المختار
+    function filterZones() {
+        const blockId = parseInt(document.getElementById('empBlockSelect').value);
+        const zoneSel = document.getElementById('empZoneId');
+        zoneSel.innerHTML = '<option value="">-- اختر الزون النهائي --</option>';
+        
+        if (!isNaN(blockId) && globalTreeData.zones) {
+            globalTreeData.zones.filter(z => z.block_id === blockId).forEach(z => {
+                zoneSel.innerHTML += `<option value="${z.id}">${z.name}</option>`;
+            });
+        }
+    }
+
+    // 5. معالجة إرسال الفورم للحفظ الفعلي في الـ API وتوليد الحساب
+    document.getElementById('addEmployeeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const name = document.getElementById('empName').value;
+        const phone = document.getElementById('empPhone').value;
+        const role = document.getElementById('empRole').value;
+        const zone_id = document.getElementById('empZoneId').value || null;
+
+        const payload = { name, phone, role, zone_id };
+
+        try {
+            const response = await fetch('/api/admin/add-employee', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // إدراج الحساب المتولد داخل المودال وعرضه للمسؤول
+                document.getElementById('resUsername').innerText = result.credentials.username;
+                document.getElementById('resPassword').innerText = result.credentials.password;
+                document.getElementById('successModal').classList.add('open');
+                
+                // إعادة تهيئة الحقول
+                document.getElementById('addEmployeeForm').reset();
+                filterGroups(); // تصفير القوائم المتتالية
+            } else {
+                alert("فشل تسجيل الموظف: " + result.error);
+            }
+        } catch (err) {
+            console.error("خطأ أثناء الاتصال بالـ API:", err);
+            alert("حدث خطأ غير متوقع أثناء إرسال البيانات.");
+        }
+    });
+
+    function closeModal() {
+        document.getElementById('successModal').classList.remove('open');
+    }
+
+    // تحميل البيانات بمجرد فتح الصفحة
+    window.onload = loadTreeData;
+</script>
+</body>
+</html>

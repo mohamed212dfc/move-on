@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>نظام إدارة المناطق المتقدم | تفضيلات متبادلة | توصيل المطاعم</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <style>
+        * { font-family: 'Cairo', 'Tajawal', system-ui, sans-serif; }
+        .step-tab { transition: all 0.3s ease; cursor: pointer; border-radius: 2rem; padding: 0.5rem 1.5rem; font-weight: 600; }
+        .step-tab.active { background: #4f46e5; color: white; box-shadow: 0 10px 15px -3px rgba(79,70,229,0.3); }
+        .pref-card { transition: all 0.2s ease; cursor: pointer; border: 2px solid #e2e8f0; background: white; border-radius: 1rem; padding: 1rem; }
+        .pref-card:hover { transform: translateY(-3px); box-shadow: 0 12px 20px -8px rgba(0,0,0,0.15); border-color: #c7d2fe; }
+        .pref-card.selected { background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white; border-color: #facc15; }
+        .pref-card.selected .badge-pref { background: #facc15; color: #1e3a8a; }
+        .modal-overlay { background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 2000; }
+        .map-container { border-radius: 1rem; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .toast-notify { position: fixed; bottom: 25px; right: 25px; z-index: 3000; animation: slideIn 0.3s ease; background: #1e293b; color: white; padding: 12px 24px; border-radius: 50px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .restaurant-card { transition: all 0.2s; cursor: pointer; }
+        .restaurant-card:hover { transform: translateY(-2px); box-shadow: 0 8px 15px -6px rgba(0,0,0,0.1); }
+        .area-badge { background: #e0e7ff; color: #3730a3; padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; }
+        .legend-info {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-gray-100 min-h-screen p-4 md:p-6">
+
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
+        <div class="bg-gradient-to-r from-indigo-800 to-indigo-600 px-6 py-5 text-white">
+            <h1 class="text-2xl md:text-3xl font-bold text-center">🗺️ المنصة المتكاملة للمناطق والتفضيلات المتبادلة</h1>
+            <p class="text-center text-indigo-100 text-sm mt-1">إدارة ذكية | تفضيلات ثنائية الاتجاه | مناطق توصيل المطاعم</p>
+        </div>
+        <!-- Step Navigation -->
+        <div class="flex flex-wrap justify-center gap-2 p-4 bg-gray-50 border-b">
+            <button onclick="showStep(1)" id="step1Btn" class="step-tab active">📍 1. الهيكل الإداري</button>
+            <button onclick="showStep(2)" id="step2Btn" class="step-tab">🗺️ 2. مناطق الجروب</button>
+            <button onclick="showStep(3)" id="step3Btn" class="step-tab">🔄 3. التفضيلات المتبادلة</button>
+            <button onclick="showStep(4)" id="step4Btn" class="step-tab">🍽️ 4. مناطق توصيل المطاعم</button>
+        </div>
+    </div>
+
+    <!-- STEP 1: الهيكل الإداري -->
+    <div id="step1Panel" class="step-panel">
+        <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+            <h2 class="text-xl font-bold mb-6 text-gray-800 border-r-4 border-indigo-600 pr-3">🏛️ التسلسل الإداري</h2>
+            <div class="grid md:grid-cols-3 gap-6">
+                <div><label class="block font-semibold mb-2">المحافظة / المكان</label><select id="placeSelect" class="w-full p-3 border rounded-xl" onchange="loadGroups()"><option value="">جاري التحميل...</option></select></div>
+                <div><label class="block font-semibold mb-2">الجروب (Group)</label><select id="groupSelect" class="w-full p-3 border rounded-xl" onchange="loadBlocks()"><option value="">-- اختر --</option></select></div>
+                <div><label class="block font-semibold mb-2">البلوك (Block)</label><select id="blockSelect" class="w-full p-3 border rounded-xl" onchange="saveBlockId()"><option value="">-- اختر --</option></select></div>
+            </div>
+            <div class="flex justify-end mt-8"><button onclick="validateAndGoToStep2()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-2.5 rounded-xl shadow-md transition">التالي ←</button></div>
+        </div>
+    </div>
+
+    <!-- STEP 2: مناطق الجروب -->
+    <div id="step2Panel" class="step-panel hidden">
+        <div class="bg-white rounded-2xl shadow-xl p-6">
+            <div class="flex flex-wrap justify-between items-center mb-5"><h2 class="text-xl font-bold text-gray-800">🗺️ مناطق الجروب الحالي</h2><button onclick="openDrawPolygonModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl shadow transition">➕ رسم منطقة جديدة</button></div>
+            <div class="map-container mb-5"><div id="groupMap" style="height: 420px;"></div></div>
+            <h3 class="font-bold text-lg mb-3">📋 قائمة المناطق</h3>
+            <div id="areasListGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-auto p-1"></div>
+            <div class="flex justify-between mt-6"><button onclick="showStep(1)" class="bg-gray-400 hover:bg-gray-500 text-white px-5 py-2 rounded-xl transition">← رجوع</button><button onclick="goToPreferencesStep()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl transition">التالي ← التفضيلات</button></div>
+        </div>
+    </div>
+
+    <!-- STEP 3: التفضيلات المتبادلة -->
+    <div id="step3Panel" class="step-panel hidden">
+        <div class="bg-white rounded-2xl shadow-xl p-6">
+            <div class="flex flex-wrap justify-between items-center border-b pb-4 mb-5"><h2 class="text-2xl font-bold text-gray-800">🔄 التفضيلات المتبادلة</h2><input type="text" id="searchPrefInput" placeholder="🔍 بحث عن منطقة..." class="border rounded-full px-4 py-2 w-64" onkeyup="filterPreferencesGrid()"></div>
+            <div class="bg-amber-50 p-3 rounded-xl text-sm mb-5 flex items-center gap-2"><span class="bg-amber-500 text-white rounded-full w-6 h-6 inline-flex items-center justify-center text-xs">i</span> ✨ اختر المنطقة الأساسية، ثم اضغط على أي بطاقة منطقة أخرى لإضافة/إلغاء تفضيل متبادل (ثنائي الاتجاه) يتم حفظه فوراً.</div>
+            <div class="flex flex-wrap gap-4 items-center mb-6 p-4 bg-gray-100 rounded-xl"><span class="font-bold">⭐ المنطقة الأساسية:</span><select id="mainAreaSelect" class="border-2 rounded-xl p-2 bg-white flex-1" onchange="changeMainArea()"></select><button onclick="clearAllPreferencesForMain()" class="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-xl text-sm transition">🗑️ مسح كل تفضيلات هذه المنطقة</button></div>
+            <div id="preferencesGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[520px] overflow-auto p-2"></div>
+            <div class="flex justify-between mt-6"><button onclick="showStep(2)" class="bg-gray-400 hover:bg-gray-500 text-white px-5 py-2 rounded-xl transition">← رجوع</button><button onclick="saveAllPreferencesAndGoToStep4()" class="bg-green-700 hover:bg-green-800 text-white px-6 py-2 rounded-xl shadow transition">💾 حفظ الكل والمتابعة ←</button></div>
+        </div>
+    </div>
+
+    <!-- STEP 4: المطاعم ومناطق التوصيل -->
+    <div id="step4Panel" class="step-panel hidden">
+        <div class="bg-white rounded-2xl shadow-xl p-6">
+            <h2 class="text-xl font-bold mb-4">🍽️ إدارة مناطق التوصيل للمطاعم</h2>
+            <div class="grid md:grid-cols-2 gap-5 mb-5"><div><label class="font-bold">اختر الزون</label><select id="zoneStep4Select" class="w-full p-3 border rounded-xl" onchange="loadZoneRestaurantsAndMap()"></select></div></div>
+            <div class="map-container mb-5"><div id="zoneMapStep4" style="height: 380px;"></div></div>
+            <h3 class="font-bold text-lg">🍕 قائمة المطاعم</h3>
+            <div id="restaurantsStep4List" class="grid md:grid-cols-2 gap-4 mt-3 max-h-80 overflow-auto"></div>
+            <div class="flex justify-between mt-6"><button onclick="showStep(3)" class="bg-gray-400 hover:bg-gray-500 text-white px-5 py-2 rounded-xl transition">← رجوع</button><button onclick="finishSetup()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-5 py-2 rounded-xl transition">✅ إنهاء وإغلاق</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: رسم مضلع -->
+<div id="polygonModal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center z-[2100]">
+    <div class="bg-white rounded-3xl w-11/12 max-w-3xl p-6 shadow-2xl">
+        <h3 class="font-bold text-xl mb-3">✏️ رسم منطقة جديدة</h3>
+        <div class="text-sm text-gray-600 mb-2 flex items-center gap-2">
+            <span class="inline-block w-3 h-3 bg-blue-500 rounded-full"></span> المناطق الموجودة (للمساعدة في التحديد)
+            <span class="inline-block w-3 h-3 bg-green-500 rounded-full mr-2"></span> المنطقة الجديدة المرسومة
+        </div>
+        <div id="drawMapContainer" style="height: 400px;" class="border rounded-xl mb-3"></div>
+        <input type="text" id="newAreaNameInput" placeholder="اسم المنطقة" class="w-full border rounded-xl p-3 mb-3">
+        <div class="flex gap-3 justify-end">
+            <button onclick="saveNewAreaFromDraw()" class="bg-green-600 text-white px-5 py-2 rounded-xl">💾 حفظ</button>
+            <button onclick="closePolygonModal()" class="bg-gray-500 text-white px-5 py-2 rounded-xl">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: إدارة مناطق التوصيل للمطعم -->
+<div id="deliveryModal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center z-[2100]">
+    <div class="bg-white rounded-3xl w-11/12 max-w-2xl p-6 max-h-[85vh] overflow-auto shadow-2xl"><h3 id="deliveryModalTitle" class="text-xl font-bold mb-4"></h3><div id="deliveryAreasList" class="grid gap-3"></div><div class="flex justify-end mt-5"><button onclick="closeDeliveryModal()" class="bg-gray-600 text-white px-5 py-2 rounded-xl">إغلاق</button></div></div>
+</div>
+
+<!-- Toast -->
+<div id="toastMessage" class="toast-notify hidden"></div>
+
+<script>
+// ======================== GLOBALS ========================
+let currentGroupId = null, currentBlockId = null, currentZoneId = null;
+let groupMap = null, drawMapInstance = null, zoneMap4 = null;
+let allGroupAreas = [];          // {id, name, preferred_groups}
+let mainAreaId = null;
+let unsavedPrefs = {};           // areaId -> array of preferred ids
+let drawnPolygonCoords = null, drawnFeatureLayer = null;
+let restaurantsList = [];
+
+// ========== Helper Functions ==========
+function showToast(msg, isError = false) { 
+    let toast = document.getElementById('toastMessage'); 
+    toast.innerText = msg; 
+    toast.classList.remove('hidden'); 
+    setTimeout(() => toast.classList.add('hidden'), 3000); 
+}
+async function apiRequest(url, options = {}) { 
+    try { 
+        const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options }); 
+        return await res.json(); 
+    } catch(e) { 
+        showToast('خطأ في الشبكة', true); 
+        return { success: false }; 
+    } 
+}
+
+// ========== STEP 1: Hierarchy ==========
+async function loadPlaces() { 
+    const data = await apiRequest('/api/initial-data'); 
+    const sel = document.getElementById('placeSelect'); 
+    sel.innerHTML = '<option value="">-- اختر المحافظة --</option>'; 
+    if (data.places) data.places.forEach(p => sel.innerHTML += `<option value="${p.id}">${p.name}</option>`); 
+}
+async function loadGroups() { 
+    const placeId = document.getElementById('placeSelect').value; 
+    const sel = document.getElementById('groupSelect'); 
+    sel.innerHTML = '<option value="">-- اختر --</option>'; 
+    if (!placeId) return; 
+    const groups = await apiRequest(`/api/groups?place_id=${placeId}`); 
+    groups.forEach(g => sel.innerHTML += `<option value="${g.id}">${g.name}</option>`); 
+}
+async function loadBlocks() { 
+    currentGroupId = document.getElementById('groupSelect').value; 
+    const sel = document.getElementById('blockSelect'); 
+    sel.innerHTML = '<option value="">-- اختر --</option>'; 
+    if (!currentGroupId) return; 
+    const blocks = await apiRequest(`/api/blocks?group_id=${currentGroupId}`); 
+    blocks.forEach(b => sel.innerHTML += `<option value="${b.id}">${b.name}</option>`); 
+}
+function saveBlockId() { currentBlockId = document.getElementById('blockSelect').value; }
+function validateAndGoToStep2() { 
+    if (!currentGroupId || !currentBlockId) { showToast('يرجى اختيار الجروب والبلوك أولاً', true); return; } 
+    showStep(2); 
+    loadGroupAreas(); 
+}
+
+// ========== STEP 2: Group Areas ==========
+async function loadGroupAreas() { 
+    if (!currentGroupId) return; 
+    const res = await apiRequest(`/api/areas/group/${currentGroupId}`); 
+    allGroupAreas = (res.areas || []).map(a => ({ id: a.id, name: a.name, coordinates: a.coordinates, preferred_groups: a.preferred_groups_array || [] })); 
+    if (groupMap) groupMap.remove(); 
+    groupMap = L.map('groupMap').setView([30.0444, 31.2357], 12); 
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(groupMap); 
+    allGroupAreas.forEach(area => { 
+        try { 
+            let coords = JSON.parse(area.coordinates); 
+            if (coords && coords.length) L.polygon(coords, { color: '#f97316', weight: 2, fillOpacity: 0.2 }).addTo(groupMap).bindPopup(`<b>${area.name}</b><br><button onclick="deleteArea(${area.id})" class="text-red-600">حذف</button>`); 
+        } catch(e) {} 
+    }); 
+    renderAreasCards(); 
+}
+function renderAreasCards() { 
+    const container = document.getElementById('areasListGrid'); 
+    container.innerHTML = allGroupAreas.map(a => `<div class="border rounded-2xl p-4 bg-white shadow-sm flex justify-between items-center"><div><span class="font-bold">${a.name}</span><div class="text-xs text-gray-500">ID: ${a.id}</div></div><button onclick="deleteArea(${a.id})" class="bg-red-50 text-red-600 px-3 py-1 rounded-full">حذف</button></div>`).join(''); 
+}
+async function deleteArea(id) { 
+    if (confirm('حذف المنطقة نهائياً؟')) { 
+        await apiRequest(`/api/areas/${id}`, { method: 'DELETE' }); 
+        loadGroupAreas(); 
+        showToast('تم الحذف'); 
+    } 
+}
+
+// ========== NEW FUNCTION: Load existing areas for the draw modal ==========
+async function loadExistingAreasForDrawModal() {
+    if (!currentGroupId) return [];
+    const res = await apiRequest(`/api/areas/group/${currentGroupId}`);
+    return (res.areas || []).map(a => {
+        try {
+            return { coordinates: JSON.parse(a.coordinates), name: a.name };
+        } catch(e) {
+            return null;
+        }
+    }).filter(a => a !== null);
+}
+
+async function openDrawPolygonModal() { 
+    document.getElementById('polygonModal').classList.remove('hidden'); 
+    setTimeout(async () => { 
+        if (drawMapInstance) drawMapInstance.remove(); 
+        drawMapInstance = L.map('drawMapContainer').setView([30.0444, 31.2357], 13); 
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(drawMapInstance); 
+        
+        // Load and display existing areas on the draw map
+        const existingAreas = await loadExistingAreasForDrawModal();
+        existingAreas.forEach(area => {
+            if (area.coordinates && area.coordinates.length) {
+                L.polygon(area.coordinates, { 
+                    color: '#3b82f6', 
+                    weight: 2, 
+                    fillOpacity: 0.15,
+                    opacity: 0.7
+                }).addTo(drawMapInstance).bindPopup(`<div class="text-right"><b>${area.name}</b><br><span class="text-xs text-gray-500">منطقة موجودة</span></div>`);
+            }
+        });
+        
+        // Add zoom control and draw control
+        const drawControl = new L.Control.Draw({ 
+            draw: { 
+                polygon: {
+                    shapeOptions: {
+                        color: '#10b981',
+                        weight: 3,
+                        fillOpacity: 0.3
+                    }
+                }, 
+                polyline: false, 
+                rectangle: false, 
+                circle: false 
+            } 
+        }); 
+        drawMapInstance.addControl(drawControl); 
+        
+        let drawnItems = new L.FeatureGroup(); 
+        drawMapInstance.addLayer(drawnItems); 
+        
+        drawMapInstance.on(L.Draw.Event.CREATED, (e) => { 
+            if (drawnFeatureLayer) drawnItems.removeLayer(drawnFeatureLayer); 
+            drawnFeatureLayer = e.layer; 
+            drawnItems.addLayer(drawnFeatureLayer); 
+            drawnPolygonCoords = e.layer.getLatLngs()[0].map(ll => [ll.lat, ll.lng]); 
+            showToast('تم رسم المنطقة الجديدة - يمكنك الآن حفظها');
+        }); 
+        
+        // Add a legend to the map
+        let legend = L.control({ position: 'bottomright' });
+        legend.onAdd = function() {
+            let div = L.DomUtil.create('div', 'legend-info');
+            div.innerHTML = '<div style="text-align: right;">'
+            div.innerHTML += '<div><span style="background: #3b82f6; display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-left: 5px;"></span> المناطق الموجودة</div>'
+            div.innerHTML += '<div><span style="background: #10b981; display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-left: 5px;"></span> المنطقة الجديدة</div>'
+            div.innerHTML += '</div>';
+            return div;
+        };
+        legend.addTo(drawMapInstance);
+        
+    }, 200); 
+}
+
+async function saveNewAreaFromDraw() { 
+    const name = document.getElementById('newAreaNameInput').value.trim(); 
+    if (!name) return showToast('أدخل اسم المنطقة'); 
+    if (!drawnPolygonCoords) return showToast('ارسم مضلعاً على الخريطة'); 
+    const zones = await apiRequest(`/api/zones?block_id=${currentBlockId}`); 
+    let zoneId = zones[0]?.id; 
+    if (!zoneId) return showToast('لا يوجد زون تحت هذا البلوك'); 
+    const payload = { zone_id: zoneId, name: name, coordinates: drawnPolygonCoords, preferred_groups: "[]" }; 
+    const res = await apiRequest('/api/areas', { method: 'POST', body: JSON.stringify(payload) }); 
+    if (res.success) { 
+        showToast('تمت الإضافة'); 
+        closePolygonModal(); 
+        loadGroupAreas(); 
+    } 
+    else showToast('فشل الحفظ'); 
+}
+function closePolygonModal() { 
+    document.getElementById('polygonModal').classList.add('hidden'); 
+    if (drawMapInstance) drawMapInstance.remove(); 
+    drawnPolygonCoords = null; 
+}
+function goToPreferencesStep() { loadPreferencesData(); showStep(3); }
+
+// ========== STEP 3: Mutual Preferences ==========
+async function loadPreferencesData() { 
+    if (!currentGroupId) return; 
+    const res = await apiRequest(`/api/areas/group/${currentGroupId}/preferences`); 
+    const areas = res.areas || []; 
+    allGroupAreas = areas.map(a => ({ id: a.id, name: a.name, preferred_groups: a.preferred_groups || [] })); 
+    unsavedPrefs = {}; 
+    allGroupAreas.forEach(a => { unsavedPrefs[a.id] = [...(a.preferred_groups || [])]; }); 
+    if (allGroupAreas.length) mainAreaId = allGroupAreas[0].id; 
+    populateMainSelectBox(); 
+    renderPreferencesCards(); 
+}
+function populateMainSelectBox() { 
+    const sel = document.getElementById('mainAreaSelect'); 
+    sel.innerHTML = allGroupAreas.map(a => `<option value="${a.id}" ${mainAreaId == a.id ? 'selected' : ''}>${a.name}</option>`).join(''); 
+}
+function changeMainArea() { 
+    mainAreaId = parseInt(document.getElementById('mainAreaSelect').value); 
+    renderPreferencesCards(); 
+}
+function renderPreferencesCards() { 
+    if (!mainAreaId) { document.getElementById('preferencesGrid').innerHTML = '<div class="col-span-full text-center p-6">اختر منطقة أساسية</div>'; return; } 
+    const mainPrefs = unsavedPrefs[mainAreaId] || []; 
+    const otherAreas = allGroupAreas.filter(a => a.id !== mainAreaId); 
+    const searchTerm = document.getElementById('searchPrefInput')?.value.toLowerCase() || ''; 
+    const filtered = otherAreas.filter(a => a.name.toLowerCase().includes(searchTerm)); 
+    const html = filtered.map(area => { 
+        const isPreferred = mainPrefs.includes(area.id); 
+        return `<div onclick="toggleMutualPreference(${area.id})" class="pref-card ${isPreferred ? 'selected' : ''}"><div class="flex justify-between items-start"><span class="font-bold text-lg">${area.name}</span>${isPreferred ? '<span class="badge-pref bg-yellow-400 text-black text-xs px-3 py-1 rounded-full">✓ مفضلة</span>' : '<span class="text-gray-400 text-xs">غير مفضلة</span>'}</div><div class="text-xs mt-1 opacity-70">ID: ${area.id}</div></div>`; 
+    }).join(''); 
+    document.getElementById('preferencesGrid').innerHTML = html || '<div class="col-span-full text-center p-6">لا توجد مناطق أخرى</div>'; 
+}
+async function toggleMutualPreference(targetId) { 
+    if (!mainAreaId) return; 
+    const currentPrefs = unsavedPrefs[mainAreaId] || []; 
+    const exists = currentPrefs.includes(targetId); 
+    let newPrefs; 
+    if (exists) newPrefs = currentPrefs.filter(id => id !== targetId); 
+    else newPrefs = [...currentPrefs, targetId]; 
+    unsavedPrefs[mainAreaId] = newPrefs; 
+    let targetPrefs = unsavedPrefs[targetId] || []; 
+    if (exists) targetPrefs = targetPrefs.filter(id => id !== mainAreaId); 
+    else { if (!targetPrefs.includes(mainAreaId)) targetPrefs = [...targetPrefs, mainAreaId]; } 
+    unsavedPrefs[targetId] = targetPrefs; 
+    await apiRequest(`/api/areas/${mainAreaId}/preferences`, { method: 'PUT', body: JSON.stringify({ preferred_groups: unsavedPrefs[mainAreaId] }) }); 
+    await apiRequest(`/api/areas/${targetId}/preferences`, { method: 'PUT', body: JSON.stringify({ preferred_groups: unsavedPrefs[targetId] }) }); 
+    showToast(exists ? 'تم إلغاء التفضيل المتبادل' : 'تم إضافة التفضيل المتبادل'); 
+    renderPreferencesCards(); 
+    populateMainSelectBox(); 
+}
+async function clearAllPreferencesForMain() { 
+    if (!mainAreaId) return; 
+    if (!confirm('مسح كل التفضيلات لهذه المنطقة؟ سيتم حذف التفضيلات من الطرفين')) return; 
+    const oldPrefs = unsavedPrefs[mainAreaId] || []; 
+    for (let otherId of oldPrefs) { 
+        let otherPrefs = unsavedPrefs[otherId] || []; 
+        unsavedPrefs[otherId] = otherPrefs.filter(id => id !== mainAreaId); 
+        await apiRequest(`/api/areas/${otherId}/preferences`, { method: 'PUT', body: JSON.stringify({ preferred_groups: unsavedPrefs[otherId] }) }); 
+    } 
+    unsavedPrefs[mainAreaId] = []; 
+    await apiRequest(`/api/areas/${mainAreaId}/preferences`, { method: 'PUT', body: JSON.stringify({ preferred_groups: [] }) }); 
+    renderPreferencesCards(); 
+    populateMainSelectBox(); 
+    showToast('تم مسح جميع التفضيلات'); 
+}
+function filterPreferencesGrid() { renderPreferencesCards(); }
+async function saveAllPreferencesAndGoToStep4() { 
+    for (let areaId in unsavedPrefs) { 
+        await apiRequest(`/api/areas/${areaId}/preferences`, { method: 'PUT', body: JSON.stringify({ preferred_groups: unsavedPrefs[areaId] }) }); 
+    } 
+    showToast('تم حفظ جميع التفضيلات'); 
+    await loadZonesForStep4(); 
+    showStep(4); 
+}
+
+// ========== STEP 4: Restaurants & Delivery Areas ==========
+async function loadZonesForStep4() { 
+    if (!currentBlockId) return; 
+    const zones = await apiRequest(`/api/zones?block_id=${currentBlockId}`); 
+    const sel = document.getElementById('zoneStep4Select'); 
+    sel.innerHTML = '<option value="">-- اختر زون --</option>'; 
+    zones.forEach(z => sel.innerHTML += `<option value="${z.id}">${z.name}</option>`); 
+}
+async function loadZoneRestaurantsAndMap() { 
+    currentZoneId = document.getElementById('zoneStep4Select').value; 
+    if (!currentZoneId) return; 
+    const areasRes = await apiRequest(`/api/areas/${currentZoneId}`); 
+    if (zoneMap4) zoneMap4.remove(); 
+    zoneMap4 = L.map('zoneMapStep4').setView([30.0444, 31.2357], 13); 
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(zoneMap4); 
+    (areasRes.areas || []).forEach(area => { 
+        try { let coords = JSON.parse(area.coordinates); if (coords) L.polygon(coords, { color: '#3b82f6', fillOpacity: 0.2 }).addTo(zoneMap4).bindPopup(area.name); } catch(e) {} 
+    }); 
+    const rests = await apiRequest(`/api/zone-restaurants/${currentZoneId}`); 
+    restaurantsList = rests.restaurants || []; 
+    renderRestaurantsList(); 
+}
+function renderRestaurantsList() { 
+    const container = document.getElementById('restaurantsStep4List'); 
+    container.innerHTML = restaurantsList.map(r => `<div class="restaurant-card border rounded-2xl p-4 bg-white shadow-sm flex justify-between items-center"><span class="font-bold">${r.restaurant_name}</span><button onclick="openDeliveryManager(${r.id}, '${r.restaurant_name}')" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded-xl text-sm transition">⚙️ مناطق التوصيل</button></div>`).join(''); 
+}
+async function openDeliveryManager(restId, restName) { 
+    document.getElementById('deliveryModalTitle').innerHTML = `🍕 ${restName} - مناطق التوصيل ورسوم التوصيل`; 
+    const areasInZone = await apiRequest(`/api/areas/${currentZoneId}`); 
+    const deliveryData = await apiRequest(`/api/restaurant-delivery-areas/${restId}`); 
+    const assignedMap = {}; 
+    (deliveryData.data || []).forEach(d => { assignedMap[d.id] = { fee: d.delivery_fee, active: d.is_active == 1 }; }); 
+    let html = `<div class="mb-3 text-sm text-gray-600">✅ تفعيل/إلغاء تفعيل المنطقة + تعيين رسوم توصيل</div>`; 
+    (areasInZone.areas || []).forEach(area => { 
+        const current = assignedMap[area.id] || { fee: '', active: false }; 
+        html += `<div class="flex flex-wrap md:flex-nowrap justify-between items-center gap-3 border-b pb-3 mb-3"><div class="w-1/3 font-bold">${area.name}</div><div class="flex items-center gap-2"><input type="number" step="0.5" id="fee_${area.id}" value="${current.fee}" placeholder="الرسوم" class="border p-2 w-24 rounded-xl"><button onclick="toggleDeliveryArea(${restId}, ${area.id}, ${!current.active})" class="px-3 py-2 rounded-xl text-sm transition ${current.active ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}">${current.active ? '🔴 إلغاء التفعيل' : '🟢 تفعيل'}</button></div><div><button onclick="saveDeliveryFee(${restId}, ${area.id})" class="bg-blue-600 text-white px-3 py-2 rounded-xl text-sm">حفظ الرسوم</button></div></div>`; 
+    }); 
+    document.getElementById('deliveryAreasList').innerHTML = html; 
+    document.getElementById('deliveryModal').classList.remove('hidden'); 
+}
+async function toggleDeliveryArea(restId, areaId, newState) { 
+    const feeInput = document.getElementById(`fee_${areaId}`); 
+    const deliveryFee = feeInput ? parseFloat(feeInput.value) : 0; 
+    const res = await apiRequest('/api/restaurant-delivery-area', { method: 'POST', body: JSON.stringify({ restaurant_id: restId, area_id: areaId, delivery_fee: isNaN(deliveryFee) ? 0 : deliveryFee, is_active: newState }) }); 
+    if (res.success) { showToast(newState ? 'تم التفعيل' : 'تم إلغاء التفعيل'); openDeliveryManager(restId, document.getElementById('deliveryModalTitle').innerText.split('-')[0]); } 
+    else showToast('فشل التحديث'); 
+}
+async function saveDeliveryFee(restId, areaId) { 
+    const fee = parseFloat(document.getElementById(`fee_${areaId}`).value); 
+    if (isNaN(fee)) return showToast('أدخل رقماً صالحاً'); 
+    const res = await apiRequest('/api/restaurant-delivery-area', { method: 'POST', body: JSON.stringify({ restaurant_id: restId, area_id: areaId, delivery_fee: fee, is_active: true }) }); 
+    if (res.success) showToast('تم حفظ الرسوم'); 
+    else showToast('خطأ'); 
+}
+function closeDeliveryModal() { document.getElementById('deliveryModal').classList.add('hidden'); }
+function finishSetup() { showToast('✅ تم حفظ جميع الإعدادات بنجاح'); setTimeout(() => showStep(1), 1500); }
+
+// ========== Step Controller ==========
+function showStep(step) { 
+    document.querySelectorAll('.step-panel').forEach(p => p.classList.add('hidden')); 
+    document.getElementById(`step${step}Panel`).classList.remove('hidden'); 
+    document.querySelectorAll('.step-tab').forEach((btn, idx) => { if (idx + 1 === step) btn.classList.add('active'); else btn.classList.remove('active'); }); 
+    if (step === 2 && currentGroupId) loadGroupAreas(); 
+    if (step === 3 && currentGroupId) loadPreferencesData(); 
+    if (step === 4 && currentBlockId) loadZonesForStep4(); 
+}
+
+// Initialize
+loadPlaces();
+</script>
+</body>
+</html>

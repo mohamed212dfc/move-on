@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Database Viewer</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #0f0f0f;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 32px;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .status {
+            color: #00ff88;
+            font-size: 14px;
+        }
+
+        .search {
+            padding: 12px;
+            width: 300px;
+            border-radius: 8px;
+            border: none;
+            background: #1d1d1d;
+            color: white;
+            outline: none;
+        }
+
+        #content {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .table-box {
+            background: #181818;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #2a2a2a;
+        }
+
+        .table-header {
+            padding: 15px 20px;
+            background: #202020;
+            border-bottom: 1px solid #2c2c2c;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-title {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .count {
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .table-wrapper {
+            overflow: auto;
+            max-height: 500px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            position: sticky;
+            top: 0;
+            background: #262626;
+            z-index: 2;
+        }
+
+        th, td {
+            border: 1px solid #333;
+            padding: 10px;
+            text-align: left;
+            white-space: nowrap;
+            font-size: 14px;
+        }
+
+        tr:nth-child(even) {
+            background: #141414;
+        }
+
+        tr:hover {
+            background: #222;
+        }
+
+        .json {
+            color: #00d0ff;
+            max-width: 500px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .empty {
+            padding: 20px;
+            color: #888;
+        }
+
+        .error {
+            color: red;
+            padding: 20px;
+        }
+
+        .loading {
+            color: #aaa;
+            padding: 20px;
+        }
+
+    </style>
+<script src="capacitor.js"></script>
+    <script src="config.js"></script>
+</head>
+
+<body>
+
+    <div class="top-bar">
+
+        <div>
+            <h1>All Database Tables</h1>
+            <div class="status" id="status">
+                Live Updating Every 1s
+            </div>
+        </div>
+
+        <input
+            type="text"
+            class="search"
+            id="search"
+            placeholder="Search tables..."
+        />
+
+    </div>
+
+    <div id="content">
+        <div class="loading">Loading...</div>
+    </div>
+
+<script>
+
+const content = document.getElementById("content");
+
+const searchInput = document.getElementById("search");
+
+let tablesCache = [];
+
+async function getTables() {
+
+    try {
+
+        const tablesRes = await fetch("/api/tables");
+
+        return await tablesRes.json();
+
+    } catch (err) {
+
+        console.error(err);
+
+        return [];
+    }
+}
+
+async function getTableData(tableName) {
+
+    try {
+
+        const res = await fetch(`/api/${tableName}`);
+
+        return await res.json();
+
+    } catch (err) {
+
+        console.error(err);
+
+        return null;
+    }
+}
+
+function createTableElement(tableName, rows) {
+
+    const box = document.createElement("div");
+
+    box.className = "table-box";
+
+    // HEADER
+
+    const header = document.createElement("div");
+
+    header.className = "table-header";
+
+    const title = document.createElement("div");
+
+    title.className = "table-title";
+
+    title.innerText = tableName;
+
+    const count = document.createElement("div");
+
+    count.className = "count";
+
+    count.innerText = `Rows: ${rows.length}`;
+
+    header.appendChild(title);
+
+    header.appendChild(count);
+
+    box.appendChild(header);
+
+    // EMPTY
+
+    if (!rows.length) {
+
+        const empty = document.createElement("div");
+
+        empty.className = "empty";
+
+        empty.innerText = "No Data";
+
+        box.appendChild(empty);
+
+        return box;
+    }
+
+    // TABLE
+
+    const wrapper = document.createElement("div");
+
+    wrapper.className = "table-wrapper";
+
+    const table = document.createElement("table");
+
+    const thead = document.createElement("thead");
+
+    const tbody = document.createElement("tbody");
+
+    const headers = Object.keys(rows[0]);
+
+    // HEADERS
+
+    const headerRow = document.createElement("tr");
+
+    headers.forEach(headerName => {
+
+        const th = document.createElement("th");
+
+        th.innerText = headerName;
+
+        headerRow.appendChild(th);
+    });
+
+    thead.appendChild(headerRow);
+
+    // ROWS
+
+    rows.forEach(row => {
+
+        const tr = document.createElement("tr");
+
+        headers.forEach(headerName => {
+
+            const td = document.createElement("td");
+
+            let value = row[headerName];
+
+            if (
+                typeof value === "object" &&
+                value !== null
+            ) {
+                value = JSON.stringify(value, null, 2);
+            }
+
+            // detect json string
+            if (
+                typeof value === "string" &&
+                (
+                    value.startsWith("{") ||
+                    value.startsWith("[")
+                )
+            ) {
+
+                td.className = "json";
+            }
+
+            td.innerText = value ?? "";
+
+            tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+    });
+
+    table.appendChild(thead);
+
+    table.appendChild(tbody);
+
+    wrapper.appendChild(table);
+
+    box.appendChild(wrapper);
+
+    return box;
+}
+
+async function loadTables() {
+
+    const search = searchInput.value.toLowerCase();
+
+    const tables = await getTables();
+
+    const filteredTables = tables.filter(t =>
+        t.toLowerCase().includes(search)
+    );
+
+    const fragment = document.createDocumentFragment();
+
+    for (const tableName of filteredTables) {
+
+        const json = await getTableData(tableName);
+
+        if (!json) {
+
+            const error = document.createElement("div");
+
+            error.className = "error";
+
+            error.innerText = `Failed loading ${tableName}`;
+
+            fragment.appendChild(error);
+
+            continue;
+        }
+
+        const rows = json.data || [];
+
+        const tableElement = createTableElement(
+            tableName,
+            rows
+        );
+
+        fragment.appendChild(tableElement);
+    }
+
+    content.innerHTML = "";
+
+    content.appendChild(fragment);
+
+    const now = new Date();
+
+    document.getElementById("status").innerText =
+        `Live Updating Every 1s | Last Update: ${now.toLocaleTimeString()}`;
+}
+
+searchInput.addEventListener("input", () => {
+
+    loadTables();
+});
+
+loadTables();
+
+// AUTO REFRESH
+
+setInterval(() => {
+
+    loadTables();
+    
+
+}, 1000);
+// كود صيد زر رجوع الموبايل والعودة للصفحة السابقة بسلاسة
+document.addEventListener('deviceready', () => {
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+        const AppPlugin = window.Capacitor.Plugins.App;
+        
+        AppPlugin.addListener('backButton', () => {
+            // التحقق من وجود تاريخ تنقل (صفحة فرعية سابقة)
+            if (window.history.length > 1) {
+                window.history.back(); // الرجوع خطوة للخلف داخل التطبيق
+            } else {
+                // إذا لم تكن هناك صفحات سابقة (تجنباً للشاشة البيضاء)، يغلق التطبيق
+                AppPlugin.exitApp(); 
+            }
+        });
+    }
+});
+</script>
+
+</body>
+
+</html>

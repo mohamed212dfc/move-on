@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مستعلم رمز الـ FCM من قاعدة البيانات</title>
+    <script src="capacitor.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #0f172a;
+            --bg: #f8fafc;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--dark);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            padding: 20px;
+            box-sizing: border-box;
+            border: 1px solid #e2e8f0;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        header h1 {
+            font-size: 20px;
+            margin: 5px 0;
+            color: var(--primary);
+        }
+
+        .driver-badge {
+            background: #e0e7ff;
+            color: var(--primary);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            display: inline-block;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+            margin-top: 15px;
+        }
+
+        .metric-box {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: right;
+        }
+
+        .metric-box p { margin: 0 0 5px 0; font-size: 12px; color: #64748b; font-weight: bold; }
+        .metric-box h3 { margin: 0; font-size: 13px; color: var(--dark); word-break: break-all; font-family: monospace; }
+
+        .log-section {
+            text-align: right;
+            width: 100%;
+        }
+
+        .log-section h3 {
+            font-size: 14px;
+            color: #475569;
+            margin-bottom: 8px;
+        }
+
+        .log-box {
+            background: var(--dark);
+            color: #34d399;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 11px;
+            line-height: 1.6;
+            height: 250px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <h1>مستعلم الـ FCM اللحظي 🔍</h1>
+        <div class="driver-badge">المستهدف (User ID): <span id="userIdDisplay">--</span></div>
+    </header>
+
+    <div class="metrics-grid">
+        <div class="metric-box" style="border-right: 4px solid var(--warning);" id="fcmBox">
+            <p>📡 الـ FCM Token المسترجع من جدول tokens:</p>
+            <h3 id="fcmDisplay" style="color: var(--warning);">جاري الاستعلام من قاعدة البيانات...</h3>
+        </div>
+    </div>
+
+    <div class="log-section">
+        <h3>سجل تتبع خطوات جلب البيانات:</h3>
+        <div class="log-box" id="logBox"></div>
+    </div>
+</div>
+
+<script src="config.js"></script>
+
+<script>
+    const SERVER_URL = (typeof CONFIG !== 'undefined' && CONFIG.SERVER_URL) ? CONFIG.SERVER_URL : "https://writes-detailed-achievement-ready.trycloudflare.com";
+    const employeeId = localStorage.getItem('employee_id');
+
+    const logBox = document.getElementById('logBox');
+    const fcmDisplay = document.getElementById('fcmDisplay');
+    const userIdDisplay = document.getElementById('userIdDisplay');
+    const fcmBox = document.getElementById('fcmBox');
+
+    function writeLog(step, message, status = 'info') {
+        const time = new Date().toLocaleTimeString();
+        let icon = "🔹";
+        if (status === 'success') icon = "✅";
+        if (status === 'warning') icon = "⚠️";
+        if (status === 'error') icon = "❌";
+        
+        logBox.innerHTML += `[${time}] خطوة ${step}: ${icon} ${message}<br>`;
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    async function getFcmFromDatabase() {
+        writeLog("1", "بدء الفحص البرمجي وقراءة الـ Local Storage...", "info");
+
+        if (!employeeId) {
+            writeLog("1", "فشل قراءة القيمة! لم يتم العثور على `employee_id` محلياً.", "error");
+            fcmDisplay.innerText = "خطأ: employee_id غير موجود في المتصفح.";
+            fcmDisplay.style.color = "var(--danger)";
+            return;
+        }
+
+        userIdDisplay.innerText = employeeId;
+        writeLog("2", `تم قراءة المعرف بنجاح. كود المستخدم المطلوب هو: [${employeeId}]`, "success");
+        writeLog("3", `جاري إرسال طلب HTTP GET إلى السيرفر لقراءة الجدول...`, "info");
+        
+        try {
+            const response = await fetch(`${SERVER_URL}/api/tokens/get-by-user?user_id=${employeeId}`);
+            writeLog("4", "استجابة الشبكة وصلت، جاري فحص البيانات وتفكيك الـ JSON...", "info");
+            const data = await response.json();
+            
+            if (data.success && data.notification_token) {
+                fcmDisplay.innerText = data.notification_token;
+                fcmDisplay.style.color = "var(--success)";
+                fcmBox.style.borderRightColor = "var(--success)";
+                writeLog("5", "نجاح العملية! تم العثور على الـ notification_token داخل السطر الخاص بالمستخدم وكتابته على الشاشة.", "success");
+            } else {
+                fcmDisplay.innerText = "⚠️ الحقل فارغ أو السطر غير موجود بالجدول.";
+                fcmDisplay.style.color = "var(--warning)";
+                fcmBox.style.borderRightColor = "var(--warning)";
+                writeLog("5", `رد السيرفر: ${data.message || 'لا يوجد توكن مسجل'}`, "warning");
+            }
+        } catch (err) {
+            fcmDisplay.innerText = "❌ خطأ في الاتصال بالسيرفر";
+            fcmDisplay.style.color = "var(--danger)";
+            fcmBox.style.borderRightColor = "var(--danger)";
+            writeLog("5", `فشل الاتصال بالشبكة تماماً: ${err.message}`, "error");
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', getFcmFromDatabase);
+
+// =====================================================
+    // 🔔 إعدادات الإشعارات لـ أندرويد النيتف والتطبيق مفتوح
+    // =====================================================
+    async function enableForegroundNotifications() {
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications) {
+            const { PushNotifications, LocalNotifications } = window.Capacitor.Plugins;
+
+            try {
+                // 1. طلب الصلاحيات بشكل صريح لضمان عدم حجب الصوت من النظام
+                await LocalNotifications.requestPermissions();
+                await PushNotifications.requestPermissions();
+
+                // 2. 🔥 إجبار النظام على بناء قناة جديدة تماماً بمعرف فريد لكسر الـ Cache الصامت
+                const channelId = 'delivery_channel_fixed'; 
+
+                await LocalNotifications.createChannel({
+                    id: channelId,
+                    name: 'طلبات التوصيل العاجلة الجدیدة',
+                    description: 'تشغيل الصوت إجبارياً داخل الواجهة المفتوحة والبديلة',
+                    importance: 5, // أعلى درجة أهمية لإجبار النظام على تشغيل الرنين
+                    sound: 'delivery_sound', // اسم الملف بدون .mp3 في مجلد res/raw
+                    visibility: 1,
+                    vibration: true
+                });
+                writeLog("أندرويد", "تم قسر قناة الصوت الجديدة بنجاح في النظام.", "success");
+
+                // 3. الاستماع اللحظي والتطبيق مفتوح أمام المندوب
+                await PushNotifications.addListener('pushNotificationReceived', async (notification) => {
+                    writeLog("إشعار فوري", `تم التقاط الطلب في الواجهة: ${notification.title}`, "success");
+
+                    // 4. إطلاق التنبيه المحلي المرتبط بالقناة الصوتية الجديدة
+                    await LocalNotifications.schedule({
+                        notifications: [
+                            {
+                                title: notification.title || "طلب توصيل جديد 🔔",
+                                body: notification.body || "لديك رحلة عاجلة جديدة، اضغط للتفاصيل",
+                                id: Math.floor(Math.random() * 100000),
+                                schedule: { at: new Date(Date.now() + 10) },
+                                channelId: channelId, // ربطه بالقناة المحدثة
+                                sound: 'delivery_sound', 
+                                smallIcon: 'ic_stat_notification',
+                                extra: {
+                                    trip_id: notification.data?.trip_id || "0"
+                                }
+                            }
+                        ]
+                    });
+                });
+
+                await LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
+                    const tripId = action.notification.extra?.trip_id;
+                    console.log(`🎯 الانتقال للرحلة رقم: ${tripId}`);
+                });
+
+            } catch (error) {
+                writeLog("خطأ نيتف", `فشل تشغيل مهيئ الصوت: ${error.message}`, "error");
+            }
+        } else {
+            writeLog("بيئة الويب", "تعذر تفعيل الاستماع النيتف لأنك تتصفح من متصفح عادي وليس الـ APK.", "warning");
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', enableForegroundNotifications);
+</script>
+</body>
+</html>

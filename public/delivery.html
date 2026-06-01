@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>منصة توصيل - لوحة المندوب الذكية</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Cairo', sans-serif; }
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 16px; }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.25);
+        }
+        
+        .order-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        
+        .order-card:active {
+            transform: scale(0.98);
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .status-searching { background: #fed7aa; color: #9b2c1d; }
+        .status-waiting { background: #bfdbfe; color: #1e3a8a; }
+        .status-delivering { background: #fbcfe8; color: #9d174d; }
+        .status-delivered { background: #a7f3d0; color: #065f46; }
+        
+        .modal-modern {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+            padding: 16px;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 28px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.4s ease;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .map-wrapper {
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        #map {
+            height: 280px;
+            width: 100%;
+            background: #e2e8f0;
+        }
+        
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #c7d2fe;
+            border-radius: 10px;
+        }
+        
+        .shift-btn {
+            transition: all 0.3s;
+        }
+        
+        .shift-btn:active {
+            transform: scale(0.96);
+        }
+        
+        .toast-custom {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 1100;
+            animation: slideInRight 0.3s ease;
+            background: #1e293b;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        @keyframes slideInRight {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .otp-input {
+            font-size: 1.8rem;
+            font-weight: bold;
+            text-align: center;
+            letter-spacing: 6px;
+            font-family: monospace;
+            direction: ltr;
+        }
+        
+        .pin-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .pin-btn {
+            background: #f3f4f6;
+            border: none;
+            padding: 14px;
+            border-radius: 14px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .pin-btn:active {
+            transform: scale(0.95);
+            background: #e5e7eb;
+        }
+        
+        .pin-btn.delete {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .info-message {
+            background: #dbeafe;
+            border-right: 4px solid #3b82f6;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-size: 0.85rem;
+        }
+        
+        .amount-card {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            margin: 16px 0;
+        }
+        
+        .amount-card-cash {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+        
+        .amount-card-visa {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+        
+        .amount-card-zero {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5, #6366f1);
+            color: white;
+            padding: 14px;
+            border-radius: 14px;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+        
+        .money-card {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            border-radius: 12px;
+            padding: 8px 12px;
+        }
+        
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .glass-card { padding: 16px; }
+            h1 { font-size: 1.2rem; }
+            .text-2xl { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="glass-card p-4 mb-4">
+        <div class="flex flex-wrap justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-indigo-500 to-purple-600 w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-lg">
+                    🚚
+                </div>
+                <div>
+                    <h1 class="text-lg font-black text-gray-800">لوحة التوصيل</h1>
+                    <div class="flex flex-wrap gap-2 mt-1">
+                        <p id="driverName" class="font-bold text-gray-700 text-sm">👤 جاري التحميل...</p>
+                        <p id="driverPhone" class="text-xs text-gray-500">📞 --</p>
+                    </div>
+                </div>
+            </div>
+            <div class="money-card">
+                <p class="text-xs font-semibold">💰 رصيدي</p>
+                <p id="walletBalance" class="text-xl font-bold">0 ج.م</p>
+            </div>
+        </div>
+        <div class="mt-3 pt-2 border-t border-gray-100 flex justify-between items-center">
+            <p id="driverZone" class="text-xs font-semibold text-indigo-600">📍 --</p>
+            <button id="shiftBtn" class="shift-btn px-4 py-1.5 rounded-xl font-bold transition-all shadow-md text-white bg-gradient-to-r from-green-500 to-emerald-600 text-sm">
+                ⚡ فتح الشفت
+            </button>
+        </div>
+        <div id="shiftTimerDisplay" class="mt-2 text-center">
+            <p class="text-xs text-gray-500">⏱️ مدة الشفت</p>
+            <p id="shiftTimer" class="text-lg font-mono font-bold text-indigo-700">00:00:00</p>
+        </div>
+    </div>
+
+    <!-- Map Section -->
+    <div class="glass-card p-3 mb-4">
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="font-bold text-gray-800">📍 خريطة الموقع</h3>
+            <button onclick="centerOnUser()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-xl text-xs font-semibold transition">
+                🎯 تحديث موقعي
+            </button>
+        </div>
+        <div class="map-wrapper">
+            <div id="map"></div>
+        </div>
+        <div id="gpsAlert" class="hidden mt-2 p-2 bg-amber-50 text-amber-700 rounded-xl text-xs border border-amber-200">
+            ⚠️ تعذر الحصول على موقعك تلقائياً. اضغط على الخريطة لتحديد موقعك يدوياً.
+        </div>
+    </div>
+
+    <!-- Orders Section -->
+    <div class="glass-card p-4">
+        <div class="flex justify-between items-center mb-3 pb-2 border-b border-gray-200">
+            <h3 class="font-black text-gray-800">📦 طلباتي النشطة</h3>
+            <div class="relative">
+                <span id="ordersCount" class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-bold">0 طلبات</span>
+            </div>
+        </div>
+        <div id="ordersList" class="space-y-3 max-h-[400px] overflow-y-auto custom-scroll">
+            <div class="text-center text-gray-400 py-8 text-sm">
+                جاري تحميل الطلبات...
+            </div>
+        </div>
+    </div>
+
+    <!-- Trip Info Card -->
+    <div id="tripCard" class="glass-card mt-4 p-4 hidden">
+        <div class="flex flex-wrap justify-between items-center gap-3">
+            <div class="flex-1">
+                <p class="text-xs text-indigo-600 font-semibold">🚀 الرحلة الحالية</p>
+                <p class="font-bold text-lg text-gray-800" id="tripState">--</p>
+                <p class="text-xs text-gray-600 mt-1" id="tripDetails"></p>
+            </div>
+            <button onclick="navigateToNearestOrder()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm transition shadow-lg active:scale-95">
+                🧭 توجيه
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: OTP Entry for Restaurant Pickup -->
+<div id="otpModal" class="modal-modern">
+    <div class="modal-content">
+        <div class="p-5">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
+                <h3 class="text-xl font-black text-gray-800">🔐 تأكيد استلام الطلب</h3>
+                <button onclick="closeOtpModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-5 transition">&times;</button>
+            </div>
+            
+            <div class="info-message">
+                <p class="text-blue-800 font-semibold mb-1">📌 رمز التحقق من المطعم:</p>
+                <p class="text-blue-700 text-sm">أدخل الرمز الذي أعطاك إياه المطعم (6 أرقام)</p>
+            </div>
+            
+            <div id="orderInfoDisplay" class="bg-gray-50 rounded-xl p-3 mb-4 text-center">
+                <p class="text-gray-500 text-xs">طلب رقم</p>
+                <p id="otpOrderNumber" class="text-xl font-bold text-indigo-600">#---</p>
+                <p id="otpRestaurantName" class="text-xs text-gray-600 mt-1">---</p>
+            </div>
+            
+            <!-- Payment Summary for Restaurant -->
+            <div id="paymentToRestaurant" class="amount-card mb-4 hidden">
+                <p class="text-sm mb-1">💰 المطلوب دفعه للمطعم</p>
+                <p id="amountToPayRestaurant" class="text-2xl font-bold">0 ج.م</p>
+                <p id="paymentNote" class="text-xs mt-1 opacity-90"></p>
+                <p id="driverEarnings" class="text-xs mt-2 font-semibold"></p>
+            </div>
+            
+            <div class="mb-4">
+                <input type="text" id="otpCode" maxlength="6" placeholder="_ _ _ _ _ _" 
+                       class="otp-input w-full border-2 border-gray-200 rounded-xl p-3 text-center text-2xl font-mono tracking-wider focus:border-indigo-500 focus:outline-none transition" 
+                       autocomplete="off" inputmode="numeric">
+            </div>
+            
+            <!-- Virtual PIN Pad -->
+            <div class="pin-pad">
+                <button class="pin-btn" onclick="addOtpDigit('1')">1</button>
+                <button class="pin-btn" onclick="addOtpDigit('2')">2</button>
+                <button class="pin-btn" onclick="addOtpDigit('3')">3</button>
+                <button class="pin-btn" onclick="addOtpDigit('4')">4</button>
+                <button class="pin-btn" onclick="addOtpDigit('5')">5</button>
+                <button class="pin-btn" onclick="addOtpDigit('6')">6</button>
+                <button class="pin-btn" onclick="addOtpDigit('7')">7</button>
+                <button class="pin-btn" onclick="addOtpDigit('8')">8</button>
+                <button class="pin-btn" onclick="addOtpDigit('9')">9</button>
+                <button class="pin-btn" onclick="addOtpDigit('0')">0</button>
+                <button class="pin-btn delete" onclick="deleteOtpDigit()">⌫</button>
+                <button class="pin-btn" onclick="clearOtp()">C</button>
+            </div>
+            
+            <div class="flex gap-2 mt-4">
+                <button id="confirmOtpBtn" onclick="confirmReceiveOrder()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-xl font-bold transition active:scale-95 text-sm">
+                    ✅ تأكيد الاستلام
+                </button>
+                <button onclick="closeOtpModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-xl font-bold transition text-sm">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Delivery Confirmation -->
+<div id="deliveryModal" class="modal-modern">
+    <div class="modal-content">
+        <div class="p-5">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
+                <h3 class="text-xl font-black text-gray-800">💰 تأكيد التوصيل والتحصيل</h3>
+                <button onclick="closeDeliveryModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-5 transition">&times;</button>
+            </div>
+            
+            <div id="deliveryInfoDisplay" class="space-y-3 mb-4"></div>
+            
+            <div class="flex gap-2">
+                <button id="confirmDeliveryBtn" onclick="confirmDeliveryComplete()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-xl font-bold transition active:scale-95 text-sm">
+                    ✅ تم التوصيل والتحصيل
+                </button>
+                <button onclick="closeDeliveryModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-xl font-bold transition text-sm">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="config.js"></script>
+<script src="capacitor.js"></script>
+<script>
+
+    
+// ======================== GLOBALS ========================
+let map = null;
+let userMarker = null;
+let ordersMarkers = [];
+let currentLat = null, currentLng = null;
+let driverData = {};
+let isShiftOpen = false;
+let openedAt = null;
+let timerInterval = null;
+let currentTrip = null;
+let currentOrders = [];
+let selectedOrder = null;
+let pendingOrderForOtp = null;
+
+const token = localStorage.getItem('auth_token');
+if (!token) {
+    Swal.fire({
+        title: 'غير مصرح',
+        text: 'يرجى تسجيل الدخول أولاً',
+        icon: 'error',
+        confirmButtonText: 'تسجيل الدخول'
+    }).then(() => {
+        window.location.href = '/login.html';
+    });
+}
+
+function showToast(message, isError = false) {
+    const toast = document.createElement('div');
+    toast.className = 'toast-custom';
+    toast.style.backgroundColor = isError ? '#dc2626' : '#1e293b';
+    toast.innerHTML = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// OTP Input Helpers
+function addOtpDigit(digit) {
+    const input = document.getElementById('otpCode');
+    if (input.value.length < 6) {
+        input.value += digit;
+    }
+}
+
+function deleteOtpDigit() {
+    const input = document.getElementById('otpCode');
+    input.value = input.value.slice(0, -1);
+}
+
+function clearOtp() {
+    document.getElementById('otpCode').value = '';
+}
+
+// ======================== LOAD PROFILE ========================
+async function loadProfile() {
+    try {
+        const res = await fetch('/api/delivery/profile', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await res.json();
+        if (!result.success) throw new Error(result.error);
+        
+        driverData = result.data;
+        document.getElementById('driverName').innerHTML = `👤 ${driverData.name}`;
+        document.getElementById('driverPhone').innerHTML = `📞 ${driverData.phone}`;
+        document.getElementById('driverZone').innerHTML = `📍 ${driverData.zone_name || 'غير محدد'}`;
+        document.getElementById('walletBalance').innerHTML = `${(driverData.money || 0).toFixed(2)} ج.م`;
+        
+        await loadShiftStatus();
+        await requestLocation();
+        await loadMyOrders();
+        
+        setInterval(() => { 
+            if (isShiftOpen) loadMyOrders(true); 
+        }, 5000);
+        
+        // Refresh driver money periodically
+        setInterval(async () => {
+            if (isShiftOpen) {
+                const res = await fetch('/api/delivery/profile', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await res.json();
+                if (result.success) {
+                    document.getElementById('walletBalance').innerHTML = `${(result.data.money || 0).toFixed(2)} ج.م`;
+                }
+            }
+        }, 30000);
+    } catch (err) {
+        showToast("خطأ في تحميل البيانات", true);
+    }
+}
+
+// ======================== GPS + MAP ========================
+async function requestLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                currentLat = pos.coords.latitude;
+                currentLng = pos.coords.longitude;
+                initMap();
+                updateLocationOnServer();
+                document.getElementById('gpsAlert')?.classList.add('hidden');
+            },
+            (err) => {
+                document.getElementById('gpsAlert')?.classList.remove('hidden');
+                initMap();
+            }
+        );
+    } else {
+        document.getElementById('gpsAlert')?.classList.remove('hidden');
+        initMap();
+    }
+}
+
+function initMap() {
+    const centerLat = currentLat || 30.0444;
+    const centerLng = currentLng || 31.2357;
+    
+    if (map) map.remove();
+    map = L.map('map').setView([centerLat, centerLng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    if (currentLat && currentLng) {
+        userMarker = L.marker([currentLat, currentLng], {
+            icon: L.divIcon({ html: '📍', iconSize: [30, 30], className: 'text-2xl' })
+        }).addTo(map).bindPopup('📍 موقعك الحالي').openPopup();
+    }
+    
+    map.on('click', (e) => {
+        currentLat = e.latlng.lat;
+        currentLng = e.latlng.lng;
+        if (userMarker) {
+            userMarker.setLatLng([currentLat, currentLng]);
+        } else {
+            userMarker = L.marker([currentLat, currentLng], {
+                icon: L.divIcon({ html: '📍', iconSize: [30, 30] })
+            }).addTo(map);
+        }
+        updateLocationOnServer();
+        showToast('✅ تم تحديث موقعك');
+    });
+}
+
+function centerOnUser() {
+    if (currentLat && currentLng) {
+        map.setView([currentLat, currentLng], 15);
+        showToast('🎯 تم التمركز على موقعك');
+    } else {
+        showToast('❌ لم يتم تحديد موقعك بعد', true);
+    }
+}
+
+async function updateLocationOnServer() {
+    if (!isShiftOpen || !currentLat || !currentLng) return;
+    try {
+        await fetch('/api/delivery/update-location', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat: currentLat, lng: currentLng })
+        });
+    } catch(e) {}
+}
+
+// ======================== SHIFT MANAGEMENT ========================
+async function loadShiftStatus() {
+    try {
+        const res = await fetch('/api/delivery/shift-status', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await res.json();
+        isShiftOpen = result.isOpen;
+        openedAt = result.opened_at;
+        updateShiftUI();
+        if (isShiftOpen && openedAt) startTimer();
+    } catch(e) {}
+}
+
+function updateShiftUI() {
+    const btn = document.getElementById('shiftBtn');
+    const timerDisplay = document.getElementById('shiftTimerDisplay');
+    
+    if (isShiftOpen) {
+        btn.textContent = "⛔ إغلاق الشفت";
+        btn.className = "shift-btn px-4 py-1.5 rounded-xl font-bold transition-all shadow-md text-white bg-gradient-to-r from-red-500 to-red-600 text-sm";
+        timerDisplay.style.display = 'block';
+    } else {
+        btn.textContent = "⚡ فتح الشفت";
+        btn.className = "shift-btn px-4 py-1.5 rounded-xl font-bold transition-all shadow-md text-white bg-gradient-to-r from-green-500 to-emerald-600 text-sm";
+        timerDisplay.style.display = 'none';
+    }
+}
+
+function startTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        if (!openedAt) return;
+        const diff = Math.floor((Date.now() - new Date(openedAt)) / 1000);
+        const hours = Math.floor(diff / 3600);
+        const minutes = Math.floor((diff % 3600) / 60);
+        const seconds = diff % 60;
+        document.getElementById('shiftTimer').innerHTML = `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+    }, 1000);
+}
+
+async function toggleShift() {
+    if (!currentLat || !currentLng) {
+        showToast("❌ يرجى تحديد موقعك على الخريطة أولاً", true);
+        return;
+    }
+    
+    const btn = document.getElementById('shiftBtn');
+    btn.disabled = true;
+    
+    try {
+        let res;
+        if (!isShiftOpen) {
+            res = await fetch('/api/delivery/open-shift', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ current_lat: currentLat, current_lng: currentLng, zone_id: driverData.zone_id })
+            });
+        } else {
+            res = await fetch('/api/delivery/close-shift', {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+        }
+        const result = await res.json();
+        if (result.success) {
+            isShiftOpen = !isShiftOpen;
+            if (isShiftOpen) openedAt = new Date();
+            updateShiftUI();
+            if (isShiftOpen) {
+                startTimer();
+                loadMyOrders();
+            } else {
+                clearInterval(timerInterval);
+                document.getElementById('ordersList').innerHTML = '<div class="text-center text-gray-400 py-8 text-sm">🔒 الشفت مغلق، قم بفتح الشفت لاستقبال الطلبات</div>';
+                document.getElementById('tripCard')?.classList.add('hidden');
+            }
+            showToast(result.message);
+        } else {
+            showToast(result.error, true);
+        }
+    } catch (err) {
+        showToast("خطأ في الاتصال", true);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ======================== LOAD ORDERS ========================
+async function loadMyOrders(silent = false) {
+    if (!isShiftOpen) return;
+    try {
+        const res = await fetch('/api/delivery/my-orders', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await res.json();
+        
+        if (result.success) {
+            currentOrders = result.orders || [];
+            currentTrip = result.trip;
+            
+            renderOrders();
+            updateTripInfo();
+            updateMapMarkers();
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+function getOrderStateText(state) {
+    const states = {
+        'searching': '⏳ قيد البحث',
+        'waiting': '📦 انتظار رمز المطعم',
+        'delivering': '🚚 جاري التوصيل',
+        'delivered': '✅ تم التوصيل'
+    };
+    return states[state] || state;
+}
+
+function getOrderStateClass(state) {
+    const classes = {
+        'searching': 'status-searching',
+        'waiting': 'status-waiting',
+        'delivering': 'status-delivering',
+        'delivered': 'status-delivered'
+    };
+    return classes[state] || 'status-waiting';
+}
+
+function calculateDriverProfit(order) {
+    // Driver keeps delivery_fee + 10 EGP commission
+    return (order.delivery_fee || 0) + 10;
+}
+
+function calculateAmountToPayRestaurant(order) {
+    if (order.payment_method === 'cash') {
+        // Cash: (total_price - delivery_fee + 10)
+        return (order.total_price || 0)  + 10;
+    } else {
+        // Visa: 10 EGP only
+        return 10;
+    }
+}
+
+function renderOrders() {
+    const container = document.getElementById('ordersList');
+    document.getElementById('ordersCount').innerHTML = `${currentOrders.length} طلبات`;
+    
+    if (currentOrders.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-400 py-8 text-sm">📭 لا توجد طلبات مخصصة لك حالياً</div>';
+        return;
+    }
+    
+    container.innerHTML = currentOrders.map(order => {
+        const driverProfit = calculateDriverProfit(order);
+        return `
+        <div class="order-card bg-white rounded-xl p-3 shadow-sm ${getOrderStateClass(order.state)}" onclick="openOrderAction(${order.id})">
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <span class="text-xs text-gray-500">رقم الطلب</span>
+                    <p class="text-lg font-black text-gray-800">#${order.order_number}</p>
+                </div>
+                <span class="status-badge ${getOrderStateClass(order.state)} text-xs">
+                    ${getOrderStateText(order.state)}
+                </span>
+            </div>
+            <div class="grid grid-cols-2 gap-1 text-xs">
+                <div><span class="text-gray-500">🏪 المطعم:</span> <span class="font-semibold">${order.restaurant_name || 'غير محدد'}</span></div>
+                <div><span class="text-gray-500">💰 المبلغ:</span> <span class="font-semibold">${order.total_price} ج.م</span></div>
+                <div><span class="text-gray-500">🚚 رسوم التوصيل:</span> <span class="font-semibold">${order.delivery_fee} ج.م</span></div>
+                <div><span class="text-gray-500">💳 الدفع:</span> <span class="font-semibold">${order.payment_method === 'cash' ? 'كاش' : 'فيزا'}</span></div>
+            </div>
+            <div class="mt-2 pt-1 border-t border-gray-100">
+               
+            </div>
+            ${order.state === 'waiting' ? `
+                <div class="mt-1">
+                    <div class="text-xs text-blue-600 font-semibold">🔐 يحتاج رمز التحقق من المطعم</div>
+                </div>
+            ` : ''}
+            ${order.state === 'delivering' ? `
+                <div class="mt-1">
+                    <div class="text-xs text-green-600 font-semibold">✅ تم الاستلام، جاري التوصيل</div>
+                </div>
+            ` : ''}
+        </div>
+    `}).join('');
+}
+
+function openOrderAction(orderId) {
+    selectedOrder = currentOrders.find(o => o.id === orderId);
+    if (!selectedOrder) return;
+    
+    if (selectedOrder.state === 'waiting') {
+        showOtpWithPaymentInfo(selectedOrder);
+    } else if (selectedOrder.state === 'delivering') {
+        showDeliveryModal(selectedOrder);
+    }
+}
+
+function showOtpWithPaymentInfo(order) {
+    pendingOrderForOtp = order;
+    document.getElementById('otpOrderNumber').innerHTML = `#${order.order_number}`;
+    document.getElementById('otpRestaurantName').innerHTML = order.restaurant_name || 'مطعم';
+    
+    // Calculate amounts
+    const amountToPay = calculateAmountToPayRestaurant(order);
+    const driverProfit = calculateDriverProfit(order);
+    let paymentNote = '';
+    
+    if (order.payment_method === 'cash') {
+       
+        document.getElementById('paymentToRestaurant').className = 'amount-card amount-card-cash mb-4';
+    } else {
+        paymentNote = `📌 العميل دفع ${order.total_price + order.delivery_fee} ج.م عبر الفيزا، ستدفع ${amountToPay} ج.م فقط للمطعم`;
+        document.getElementById('paymentToRestaurant').className = 'amount-card amount-card-visa mb-4';
+    }
+    
+    document.getElementById('amountToPayRestaurant').innerHTML = `${amountToPay} ج.م`;
+    document.getElementById('paymentNote').innerHTML = paymentNote;
+   
+    document.getElementById('paymentToRestaurant').classList.remove('hidden');
+    
+    clearOtp();
+    document.getElementById('otpModal').style.display = 'flex';
+}
+
+function updateTripInfo() {
+    const tripCard = document.getElementById('tripCard');
+    if (currentTrip && currentOrders.length > 0) {
+        tripCard.classList.remove('hidden');
+        
+        // Check if there's any order with state 'waiting'
+        const hasWaitingOrders = currentOrders.some(o => o.state === 'waiting');
+        const totalProfit = currentOrders.reduce((sum, o) => sum + calculateDriverProfit(o), 0);
+        
+        if (hasWaitingOrders) {
+            document.getElementById('tripState').innerHTML = '⏳ في انتظار استلام الطلبات';
+         
+        } else {
+            const allDelivering = currentOrders.every(o => o.state === 'delivering');
+            const allDelivered = currentOrders.every(o => o.state === 'delivered');
+            
+            if (allDelivered) {
+                document.getElementById('tripState').innerHTML = '✅ رحلة مكتملة';
+                document.getElementById('tripDetails').innerHTML = `تم توصيل جميع الطلبات بنجاح | 💰 إجمالي الأرباح: ${totalProfit} ج.م`;
+            } else if (allDelivering) {
+                document.getElementById('tripState').innerHTML = '🚚 جاري توصيل الطلبات';
+                document.getElementById('tripDetails').innerHTML = `📦 ${currentOrders.length} طلبات قيد التوصيل | 💰 أرباح متوقعة: ${totalProfit} ج.م`;
+            } else {
+                document.getElementById('tripState').innerHTML = currentTrip.trip_state === 'delivered' ? '✅ مكتمل' : '🚚 جاري التوصيل';
+                document.getElementById('tripDetails').innerHTML = `📦 ${currentOrders.length} طلبات | 💰 أرباح متوقعة: ${totalProfit} ج.م`;
+            }
+        }
+    } else {
+        tripCard.classList.add('hidden');
+    }
+}
+
+function updateMapMarkers() {
+    if (!map) return;
+    ordersMarkers.forEach(m => { map.removeLayer(m); });
+    ordersMarkers = [];
+    
+    currentOrders.forEach(order => {
+        if (order.area_coordinates) {
+            try {
+                const coords = JSON.parse(order.area_coordinates);
+                if (coords && coords.length && coords[0]) {
+                    const markerColor = order.state === 'waiting' ? '🏪' : order.state === 'delivering' ? '🚚' : '✅';
+                    const marker = L.marker([coords[0][0], coords[0][1]], {
+                        icon: L.divIcon({ html: markerColor, iconSize: [25, 25], className: 'text-xl' })
+                    }).addTo(map).bindPopup(`
+                        <div style="text-align: right; direction: rtl; font-size: 12px;">
+                            <b>طلب #${order.order_number}</b><br>
+                            🏪 ${order.restaurant_name || ''}<br>
+                            💰 ${order.total_price} ج.م<br>
+                            🚚 رسوم: ${order.delivery_fee} ج.م<br>
+                            💰 أرباحك: ${calculateDriverProfit(order)} ج.م<br>
+                            <b>الحالة: ${getOrderStateText(order.state)}</b>
+                        </div>
+                    `);
+                    ordersMarkers.push(marker);
+                }
+            } catch(e) {}
+        }
+    });
+}
+
+// ======================== OTP CONFIRMATION ========================
+function closeOtpModal() {
+    document.getElementById('otpModal').style.display = 'none';
+    pendingOrderForOtp = null;
+    clearOtp();
+}
+
+async function confirmReceiveOrder() {
+    const otp = document.getElementById('otpCode').value.trim();
+    if (!otp || otp.length !== 6) {
+        Swal.fire('خطأ', 'الرجاء إدخال رمز التحقق المكون من 6 أرقام', 'error');
+        return;
+    }
+    
+    if (!pendingOrderForOtp) return;
+    
+    const amountToPay = calculateAmountToPayRestaurant(pendingOrderForOtp);
+    const driverProfit = calculateDriverProfit(pendingOrderForOtp);
+    
+    const paymentConfirm = await Swal.fire({
+        title: '💰 تأكيد الدفع للمطعم',
+        html: `
+            <div class="text-right">
+                <p class="text-lg"><strong>المطلوب دفعه للمطعم:</strong> ${amountToPay} ج.م</p>
+             
+                <p class="text-sm text-gray-500 mt-2">هل تم دفع هذا المبلغ للمطعم؟</p>
+                <p class="text-xs text-red-500 mt-1">⚠️ تأكد من دفع المبلغ قبل استلام الطلب</p>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: '✅ نعم، تم الدفع',
+        cancelButtonText: '❌ إلغاء'
+    });
+    
+    if (!paymentConfirm.isConfirmed) return;
+    
+    try {
+        const res = await fetch('/api/delivery/receive-order-with-otp', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_id: pendingOrderForOtp.id, otp_code: otp })
+        });
+        const result = await res.json();
+        
+        if (result.success) {
+            Swal.fire({
+                title: 'تم الاستلام',
+               
+                icon: 'success',
+                confirmButtonText: 'حسناً'
+            });
+            closeOtpModal();
+            await loadMyOrders();
+            
+            // Refresh driver money
+            const profileRes = await fetch('/api/delivery/profile', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const profileResult = await profileRes.json();
+            if (profileResult.success) {
+                document.getElementById('walletBalance').innerHTML = `${(profileResult.data.money || 0).toFixed(2)} ج.م`;
+            }
+        } else {
+            Swal.fire('خطأ', result.error || 'رمز تحقق غير صالح', 'error');
+        }
+    } catch(e) {
+        Swal.fire('خطأ', 'حدث خطأ في الاتصال', 'error');
+    }
+}
+
+// ======================== DELIVERY MODAL ========================
+function showDeliveryModal(order) {
+    let amountToCollect = 0;
+    let modalClass = '';
+    let message = '';
+    const driverProfit = calculateDriverProfit(order);
+    
+    if (order.payment_method === 'cash') {
+        amountToCollect = order.total_price + order.delivery_fee;
+        modalClass = 'amount-card-cash';
+        message = `💰 سيتم تحصيل ${amountToCollect} ج.م من العميل نقداً  `;
+    } else {
+        amountToCollect = 0;
+        modalClass = 'amount-card-zero';
+        message = `💳 تم الدفع عبر الفيزا، لا يوجد مبلغ للتحصيل من العميل`;
+    }
+    
+    const html = `
+        <div class="space-y-3">
+            <div class="flex justify-between items-center border-b pb-2">
+                <span class="text-gray-600 text-sm">رقم الطلب:</span>
+                <span class="font-bold text-indigo-600">#${order.order_number}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-600 text-sm">🏪 المطعم:</span>
+                <span class="font-bold text-sm">${order.restaurant_name || 'غير محدد'}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-600 text-sm">💰 قيمة الطلب:</span>
+                <span class="font-bold text-sm">${order.total_price} ج.م</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-600 text-sm">🚚 رسوم التوصيل:</span>
+                <span class="font-bold text-sm">${order.delivery_fee} ج.م</span>
+            </div>
+            <div class="amount-card ${modalClass} p-3 rounded-xl text-center">
+                <p class="text-sm mb-1">💵 المبلغ للتحصيل من العميل:</p>
+                <p class="text-2xl font-bold">${amountToCollect} ج.م</p>
+                <p class="text-xs mt-1">${message}</p>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-600 text-sm">💳 طريقة الدفع:</span>
+                <span class="font-bold text-sm">${order.payment_method === 'cash' ? '💰 كاش' : '💳 فيزا'}</span>
+            </div>
+            <div class="bg-green-50 p-2 rounded-lg text-center">
+               
+            </div>
+            ${amountToCollect > 0 ? `
+                <div class="info-message text-sm">
+                    ⚠️ تأكد من تحصيل المبلغ من العميل قبل تأكيد التوصيل
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    document.getElementById('deliveryInfoDisplay').innerHTML = html;
+    document.getElementById('deliveryModal').style.display = 'flex';
+}
+
+function closeDeliveryModal() {
+    document.getElementById('deliveryModal').style.display = 'none';
+}
+
+async function confirmDeliveryComplete() {
+    if (!selectedOrder) return;
+    
+    const amountToCollect = selectedOrder.payment_method === 'cash' 
+        ? (selectedOrder.total_price + selectedOrder.delivery_fee) 
+        : 0;
+    const driverProfit = calculateDriverProfit(selectedOrder);
+    
+    if (amountToCollect > 0) {
+        const result = await Swal.fire({
+            title: '💰 تأكيد التحصيل',
+            html: `
+                <div class="text-right">
+                    <p class="text-lg"><strong>المبلغ المطلوب تحصيله:</strong> ${amountToCollect} ج.م</p>
+                    
+                    <p class="text-sm text-gray-500 mt-2">هل تم تحصيل المبلغ من العميل؟</p>
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: '✅ نعم، تم التحصيل',
+            cancelButtonText: '❌ إلغاء'
+        });
+        
+        if (!result.isConfirmed) return;
+    }
+    
+    try {
+        const res = await fetch('/api/delivery/complete-delivery', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_id: selectedOrder.id })
+        });
+        const result = await res.json();
+        
+        if (result.success) {
+            Swal.fire({
+                title: 'تم التوصيل',
+                html: `✅ تم تأكيد توصيل الطلب للعميل بنجاح<br>💰 تم إضافة ${driverProfit} ج.م إلى رصيدك`,
+                icon: 'success',
+                confirmButtonText: 'حسناً'
+            });
+            closeDeliveryModal();
+            await loadMyOrders();
+            
+            // Refresh driver money
+            const profileRes = await fetch('/api/delivery/profile', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const profileResult = await profileRes.json();
+            if (profileResult.success) {
+                document.getElementById('walletBalance').innerHTML = `${(profileResult.data.money || 0).toFixed(2)} ج.م`;
+            }
+        } else {
+            Swal.fire('خطأ', result.error || 'حدث خطأ', 'error');
+        }
+    } catch(e) {
+        Swal.fire('خطأ', 'حدث خطأ في الاتصال', 'error');
+    }
+}
+
+function navigateToNearestOrder() {
+    const undeliveredOrders = currentOrders.filter(o => o.state !== 'delivered');
+    if (undeliveredOrders.length === 0) {
+        showToast("لا توجد طلبات معلقة", true);
+        return;
+    }
+    
+    const firstOrder = undeliveredOrders[0];
+    if (firstOrder.area_coordinates) {
+        try {
+            const coords = JSON.parse(firstOrder.area_coordinates);
+            if (coords && coords.length && coords[0]) {
+                map.setView([coords[0][0], coords[0][1]], 14);
+                showToast(`🧭 تم التوجيه إلى طلب #${firstOrder.order_number}`);
+            }
+        } catch(e) {
+            showToast("لا توجد إحداثيات للمنطقة", true);
+        }
+    }
+}
+
+// Event listeners
+document.getElementById('shiftBtn').addEventListener('click', toggleShift);
+
+// Start the app
+loadProfile();
+// كود صيد زر رجوع الموبايل والعودة للصفحة السابقة بسلاسة
+document.addEventListener('deviceready', () => {
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+        const AppPlugin = window.Capacitor.Plugins.App;
+        
+        AppPlugin.addListener('backButton', () => {
+            // التحقق من وجود تاريخ تنقل (صفحة فرعية سابقة)
+            if (window.history.length > 1) {
+                window.history.back(); // الرجوع خطوة للخلف داخل التطبيق
+            } else {
+                // إذا لم تكن هناك صفحات سابقة (تجنباً للشاشة البيضاء)، يغلق التطبيق
+                AppPlugin.exitApp(); 
+            }
+        });
+    }
+});
+</script>
+</body>
+</html>

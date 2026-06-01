@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - إعداد الزون والمطاعم والموظفين</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        :root {
+            --primary: #4f46e5; --primary-hover: #4338ca;
+            --success: #10b981; --success-hover: #059669;
+            --danger: #ef4444; --bg-main: #f8fafc;
+            --card-bg: #ffffff; --text-title: #0f172a;
+            --border-color: #e2e8f0;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-main); margin: 0; padding: 20px; direction: rtl; }
+        .form-card { max-width: 750px; background: var(--card-bg); padding: 40px; border-radius: 16px; margin: 20px auto; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid var(--border-color); }
+        
+        .stepper { display: flex; justify-content: space-between; margin-bottom: 40px; position: relative; }
+        .stepper::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: var(--border-color); z-index: 1; transform: translateY(-50%); }
+        .step-node { width: 35px; height: 35px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 2; font-weight: bold; border: 3px solid var(--card-bg); color: #64748b; }
+        .step-node.active { background: var(--primary); color: white; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.2); }
+        
+        .form-step { display: none; }
+        .form-step.active { display: block; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-title); }
+        input, select { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 10px; box-sizing: border-box; background: #f8fafc; }
+        .hidden { display: none; }
+        
+        .btn-container { display: flex; gap: 16px; margin-top: 32px; }
+        button { padding: 12px 24px; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; }
+        .btn-next { background: var(--primary); color: white; }
+        .btn-prev { background: #f1f5f9; color: #475569; }
+        .btn-submit { background: var(--success); color: white; }
+        
+        #map { height: 280px; width: 100%; border-radius: 12px; border: 1px solid var(--border-color); }
+        .dynamic-box { background: #f8fafc; border: 1px solid var(--border-color); padding: 20px; border-radius: 12px; margin-bottom: 15px; position: relative; }
+        .btn-danger-light { background: #fee2e2; color: #ef4444; font-size: 13px; padding: 6px 12px; border-radius: 6px; position: absolute; top: 15px; left: 15px; }
+        
+        /* تصميم فلاتر وقائمة الموظفين */
+        .filter-panel { display: flex; gap: 10px; background: #f1f5f9; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+        .employee-list-container { max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 10px; padding: 10px; }
+        .emp-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid var(--border-color); transition: 0.2s; }
+        .emp-item:hover { background: #f8fafc; }
+        .emp-badge { padding: 4px 8px; font-size: 11px; border-radius: 6px; font-weight: bold; }
+        .badge-free { background: #d1fae5; color: #065f46; }
+        .badge-busy { background: #ffedd5; color: #9a3412; }
+
+        /* موديول الخيارات التنبيهية */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 999; opacity: 0; visibility: hidden; transition: 0.3s; }
+        .modal-overlay.open { opacity: 1; visibility: visible; }
+        .modal-content { background: white; padding: 25px; border-radius: 16px; width: 100%; max-width: 450px; text-align: center; }
+        .modal-btns { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="form-card">
+    <div class="stepper">
+        <div class="step-node active" id="p1">1</div>
+        <div class="step-node" id="p2">2</div>
+        <div class="step-node" id="p3">3</div>
+        <div class="step-node" id="p4">4</div>
+    </div>
+
+    <form id="mainZoneForm">
+        <div class="form-step active" id="step1">
+            <h3>📍 الهيكل الإداري والقطاعات</h3>
+            <div class="form-group">
+                <label>المكان (Place):</label>
+                <select id="placeType" onchange="toggleField('place')"><option value="select">اختر مكان</option><option value="new">+ مكان جديد</option></select>
+                <select id="placeId" style="margin-top:10px;"></select>
+                <div id="placeNewDiv" class="hidden" style="margin-top:10px;"><input type="text" id="placeName" placeholder="اسم المكان جديد"><select id="governorate" style="margin-top:5px;"><option value="القاهرة">القاهرة</option></select></div>
+            </div>
+            <div class="form-group">
+                <label>المجموعة (Group):</label>
+                <select id="groupType" onchange="toggleField('group')"><option value="select">اختر مجموعة</option><option value="new">+ مجموعة جديدة</option></select>
+                <select id="groupId" style="margin-top:10px;"></select>
+                <input type="text" id="groupName" class="hidden" placeholder="اسم المجموعة الجديدة" style="margin-top:10px;">
+            </div>
+            <div class="form-group">
+                <label>القطاع (Block):</label>
+                <select id="blockType" onchange="toggleField('block')"><option value="select">اختر قطاع</option><option value="new">+ قطاع جديد</option></select>
+                <select id="blockId" style="margin-top:10px;"></select>
+                <input type="text" id="blockName" class="hidden" placeholder="اسم القطاع الجديد" style="margin-top:10px;">
+            </div>
+            <div class="btn-container"><button type="button" class="btn-next" onclick="navigateStep(2)">التالي &larr;</button></div>
+        </div>
+
+        <div class="form-step" id="step2">
+            <h3>🗺️ النطاق الجغرافي والزون</h3>
+            <div class="form-group"><label>اسم الزون:</label><input type="text" id="zoneName"></div>
+            <div class="form-group"><label>الموقع من الخريطة:</label><input type="text" id="zoneLocation" readonly><div id="map" style="margin-top:10px;"></div></div>
+            <div class="btn-container"><button type="button" class="btn-prev" onclick="navigateStep(1)">&rarr; السابق</button><button type="button" class="btn-next" onclick="navigateStep(3)">التالي &larr;</button></div>
+        </div>
+
+        <div class="form-step" id="step3">
+            <h3>🍔 إعدادات المطاعم والبراندات المربوطة بالزون</h3>
+            <div id="restaurantsContainer"></div>
+            <button type="button" class="btn-next" style="background:#e0e7ff; color:var(--primary); width:100%; margin-top:10px;" onclick="addRestaurantRow()">+ إضافة مطعم/فرع آخر للزون</button>
+            
+            <div class="btn-container">
+                <button type="button" class="btn-prev" onclick="navigateStep(2)">&rarr; السابق</button>
+                <button type="button" class="btn-next" onclick="navigateStep(4)">التالي &larr;</button>
+            </div>
+        </div>
+
+        <div class="form-step" id="step4">
+            <h3>👥 تعيين الموظفين المتواجدين بالنظام للزون</h3>
+            
+            <div class="filter-panel">
+                <div style="flex:1;">
+                    <label style="font-size:12px;">تصفية حسب الوظيفة:</label>
+                    <select id="filterRole" onchange="filterEmployeesList()">
+                        <option value="all">كل الوظائف</option>
+                        <option value="delivery">Delivery</option>
+                        <option value="manager">Manager</option>
+                        <option value="administrator">Administrator</option>
+                    </select>
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:12px;">تصفية حسب حالة الزون:</label>
+                    <select id="filterZoneStatus" onchange="filterEmployeesList()">
+                        <option value="all">الكل</option>
+                        <option value="free">موظفين أحرار (بلا زون)</option>
+                        <option value="busy">موظفين مسجلين بزونات أخرى</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="employee-list-container" id="employeeList"></div>
+
+            <div class="btn-container">
+                <button type="button" class="btn-prev" onclick="navigateStep(3)">&rarr; السابق</button>
+                <button type="submit" class="btn-submit">تأكيد وإنشاء الزون بالكامل</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="modal-overlay" id="conflictModal">
+    <div class="modal-content">
+        <h4 style="color:var(--danger); margin-top:0;">⚠️ تنبيه تعارض وتعيين موظف</h4>
+        <p id="conflictText"></p>
+        <div class="modal-btns">
+            <button type="button" class="btn-submit" style="background:var(--danger);" onclick="resolveConflict('detach')">فصله من الزون القديم</button>
+            <button type="button" class="btn-next" onclick="resolveConflict('keep_both')">إبقاؤه في الاثنين معاً</button>
+            <button type="button" class="btn-prev" onclick="resolveConflict('cancel')">إلغاء التحديد</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="brandModal">
+    <div class="modal-content">
+        <h4>✨ إضافة براند جديد للنظام</h4>
+        <div class="form-group"><input type="text" id="newBrandNameName" placeholder="اسم البراند (مثال: بازوكا)"></div>
+        <div class="modal-btns">
+            <button type="button" class="btn-submit" onclick="saveNewBrandInline()">حفظ البراند</button>
+            <button type="button" class="btn-prev" onclick="document.getElementById('brandModal').classList.remove('open')">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let map, marker, rawData = {};
+    let finalSelectedEmps = {}; 
+    let currentConflictedEmpId = null;
+    let restaurantCount = 0;
+
+    function navigateStep(s) {
+        document.querySelectorAll('.form-step').forEach(step => step.classList.remove('active'));
+        document.querySelectorAll('.step-node').forEach((node, idx) => {
+            if(idx < s) node.classList.add('active');
+            else node.classList.remove('active');
+        });
+        document.getElementById(`step${s}`).classList.add('active');
+        
+        if (s === 2) { 
+            setTimeout(() => { 
+                if(!map){ 
+                    map = L.map('map').setView([30.0444, 31.2357], 11); 
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map); 
+                    map.on('click', e => { 
+                        document.getElementById('zoneLocation').value = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`; 
+                        if(marker) marker.setLatLng(e.latlng); else marker = L.marker(e.latlng).addTo(map); 
+                    }); 
+                } 
+            }, 250); 
+        }
+    }
+
+    function toggleField(p) {
+        const type = document.getElementById(`${p}Type`).value;
+        if(type==='new'){ 
+            document.getElementById(`${p}Id`).classList.add('hidden'); 
+            if(p==='place') document.getElementById('placeNewDiv').classList.remove('hidden'); 
+            else document.getElementById(`${p}Name`).classList.remove('hidden'); 
+        } else { 
+            document.getElementById(`${p}Id`).classList.remove('hidden'); 
+            if(p==='place') document.getElementById('placeNewDiv').classList.add('hidden'); 
+            else document.getElementById(`${p}Name`).classList.add('hidden'); 
+        }
+    }
+
+    // توليد حقول إضافة المطاعم بشكل ديناميكي مكرر
+    function addRestaurantRow() {
+        restaurantCount++;
+        const container = document.getElementById('restaurantsContainer');
+        const box = document.createElement('div');
+        box.className = 'dynamic-box';
+        box.id = `rest_row_${restaurantCount}`;
+        
+        let brandOptions = `<option value="">اختر البراند الأم</option><option value="NEW_BRAND">+ إضافة براند جديد للنظام</option>`;
+        rawData.brands.forEach(b => { brandOptions += `<option value="${b.id}">${b.name}</option>`; });
+
+        box.innerHTML = `
+            <button type="button" class="btn-danger-light" onclick="removeRestaurantRow(${restaurantCount})">حذف</button>
+            <h4 style="margin-top:0; color:var(--primary);">مطعم #${restaurantCount}</h4>
+            <div class="form-group">
+                <label>البراند:</label>
+                <select class="rest-brand" onchange="checkBrandSelection(this)">${brandOptions}</select>
+            </div>
+            <div class="form-group">
+                <label>اسم فرع المطعم المتواجد بالزون:</label>
+                <input type="text" class="rest-name" placeholder="مثال: بازوكا - الشروق">
+            </div>
+            <div style="display:flex; gap:10px;">
+                <div class="form-group" style="flex:1;"><label>الراتب الثابت:</label><input type="number" class="rest-salary" value="0"></div>
+                <div class="form-group" style="flex:1;"><label>متوسط الأوردرات يومياً:</label><input type="number" class="rest-orders" value="0"></div>
+            </div>
+        `;
+        container.appendChild(box);
+    }
+
+    function removeRestaurantRow(id) {
+        document.getElementById(`rest_row_${id}`).remove();
+    }
+
+    function checkBrandSelection(selectEl) {
+        if(selectEl.value === 'NEW_BRAND') {
+            document.getElementById('brandModal').classList.add('open');
+            window.currentActiveBrandSelect = selectEl;
+        }
+    }
+
+    async function saveNewBrandInline() {
+        const name = document.getElementById('newBrandNameName').value;
+        if(!name.trim()) return alert("برجاء كتابة اسم البراند");
+        
+        const res = await fetch('/api/save-zone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ zoneName: "INTERNAL_TEMP_BRAND_INIT", brandType: 'new', brandName: name })
+        });
+        const r = await res.json();
+        if(r.success) {
+            document.getElementById('brandModal').classList.remove('open');
+            document.getElementById('newBrandNameName').value = "";
+            await loadInitialDataOnly(); // إعادة تنشيط البيانات
+            
+            // تحديث خيارات الاختيار الحالي
+            let brandOptions = `<option value="">اختر البراند الأم</option><option value="NEW_BRAND">+ إضافة براند جديد للنظام</option>`;
+            rawData.brands.forEach(b => { brandOptions += `<option value="${b.id}">${b.name}</option>`; });
+            
+            document.querySelectorAll('.rest-brand').forEach(sel => {
+                const currentVal = sel.value;
+                sel.innerHTML = brandOptions;
+                sel.value = currentVal === 'NEW_BRAND' ? rawData.brands[rawData.brands.length - 1].id : currentVal;
+            });
+        }
+    }
+
+    function renderEmployees() {
+        const container = document.getElementById('employeeList');
+        container.innerHTML = "";
+        const roleFilter = document.getElementById('filterRole').value;
+        const statusFilter = document.getElementById('filterZoneStatus').value;
+
+        rawData.employees.forEach(emp => {
+            if(roleFilter !== 'all' && emp.role !== roleFilter) return;
+            if(statusFilter === 'free' && emp.zone_id) return;
+            if(statusFilter === 'busy' && !emp.zone_id) return;
+
+            const isChecked = finalSelectedEmps[emp.id] ? 'checked' : '';
+            const statusBadge = emp.zone_id 
+                ? `<span class="emp-badge badge-busy">مسجل بزون (${emp.zone_id})</span>` 
+                : `<span class="emp-badge badge-free">حر جاهز</span>`;
+
+            const item = document.createElement('div');
+            item.className = 'emp-item';
+            item.innerHTML = `
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" id="chk_${emp.id}" ${isChecked} onchange="handleEmpCheckboxChange(${emp.id}, '${emp.name}', '${emp.zone_id}')" style="width:auto;">
+                    <strong>${emp.name}</strong> <span style="color:#64748b; font-size:13px;">(${emp.role})</span>
+                </div>
+                <div>${statusBadge}</div>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    function filterEmployeesList() { renderEmployees(); }
+
+    function handleEmpCheckboxChange(id, name, zoneId) {
+        const chk = document.getElementById(`chk_${id}`);
+        if(chk.checked) {
+            if(zoneId && zoneId !== "null" && zoneId.toString().trim() !== "") {
+                currentConflictedEmpId = id;
+                document.getElementById('conflictText').innerText = `الموظف "${name}" مسجل بالفعل في نطاق زون آخر (${zoneId}). ما الإجراء المطلوب عمله معه؟`;
+                document.getElementById('conflictModal').classList.add('open');
+            } else {
+                finalSelectedEmps[id] = { id: id, action: 'none', currentZones: "" };
+            }
+        } else {
+            delete finalSelectedEmps[id];
+        }
+    }
+
+    function resolveConflict(action) {
+        document.getElementById('conflictModal').classList.remove('open');
+        const id = currentConflictedEmpId;
+        const chk = document.getElementById(`chk_${id}`);
+        if (action === 'cancel') {
+            if(chk) chk.checked = false;
+            delete finalSelectedEmps[id];
+        } else {
+            const currentEmp = rawData.employees.find(e => e.id === id);
+            finalSelectedEmps[id] = {
+                id: id,
+                action: action, 
+                currentZones: currentEmp && currentEmp.zone_id ? currentEmp.zone_id.toString() : ""
+            };
+        }
+        currentConflictedEmpId = null;
+    }
+
+    async function loadInitialDataOnly() {
+        const res = await fetch('/api/initial-data');
+        rawData = await res.json();
+    }
+
+    async function loadData() {
+        await loadInitialDataOnly();
+        ['placeId','groupId','blockId'].forEach(id => {
+            const el = document.getElementById(id); el.innerHTML = "";
+            const items = id==='placeId'? rawData.places : id==='groupId'? rawData.groups : rawData.blocks;
+            items.forEach(i => el.innerHTML += `<option value="${i.id}">${i.name}</option>`);
+        });
+        addRestaurantRow(); // توليد أول مطعم افتراضي تلقائياً
+        renderEmployees();
+    }
+
+    document.getElementById('mainZoneForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // تجميع مصفوفة المطاعم المدخلة في الخطوة الثالثة
+        const restaurantsArray = [];
+        document.querySelectorAll('#restaurantsContainer .dynamic-box').forEach(box => {
+            restaurantsArray.push({
+                brandId: box.querySelector('.rest-brand').value,
+                restaurantName: box.querySelector('.rest-name').value,
+                salary: parseFloat(box.querySelector('.rest-salary').value) || 0,
+                avgOrders: parseInt(box.querySelector('.rest-orders').value) || 0
+            });
+        });
+
+        const selectedEmpsArray = Object.values(finalSelectedEmps);
+
+        const payload = {
+            placeType: document.getElementById('placeType').value,
+            placeId: document.getElementById('placeId').value,
+            placeName: document.getElementById('placeName').value,
+            governorate: document.getElementById('governorate').value,
+            groupType: document.getElementById('groupType').value,
+            groupId: document.getElementById('groupId').value,
+            groupName: document.getElementById('groupName').value,
+            blockType: document.getElementById('blockType').value,
+            blockId: document.getElementById('blockId').value,
+            blockName: document.getElementById('blockName').value,
+            zoneName: document.getElementById('zoneName').value,
+            zoneLocation: document.getElementById('zoneLocation').value,
+            restaurants: restaurantsArray, // مصفوفة المطاعم والبراندات المجمعة حديثاً
+            selectedEmployees: selectedEmpsArray
+        };
+
+        const res = await fetch('/api/save-zone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const r = await res.json();
+        if(r.success) { alert(r.message); location.reload(); } else alert("خطأ: "+r.error);
+    });
+
+    window.onload = loadData;
+</script>
+</body>
+</html>

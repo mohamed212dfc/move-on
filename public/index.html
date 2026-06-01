@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>نظام إدارةdd التوصيل الذكي | الرئيسية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            font-family: 'Cairo', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        /* Animated background particles */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+        }
+        
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 20s infinite ease-in-out;
+        }
+        
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.5;
+            }
+            90% {
+                opacity: 0.5;
+            }
+            100% {
+                transform: translateY(-100vh) translateX(100px);
+                opacity: 0;
+            }
+        }
+        
+        /* Glass morphism card */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Neon button effect */
+        .neon-btn {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .neon-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .neon-btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        /* Dropdown menu */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background: white;
+            min-width: 220px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            border-radius: 16px;
+            z-index: 50;
+            animation: fadeInDown 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .dropdown-content a {
+            color: #4a5568;
+            padding: 12px 20px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .dropdown-content a:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: translateX(-5px);
+        }
+        
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Animated gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: shimmer 3s infinite;
+        }
+        
+        @keyframes shimmer {
+            0%, 100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+        
+        /* Icon bounce effect */
+        .icon-bounce {
+            transition: transform 0.3s ease;
+        }
+        
+        .dropdown-content a:hover .icon-bounce {
+            transform: scale(1.1) translateX(-3px);
+        }
+        
+        /* Hero section animation */
+        .hero-title {
+            animation: slideInUp 0.8s ease;
+        }
+        
+        .hero-subtitle {
+            animation: slideInUp 1s ease;
+        }
+        
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Floating animation for cards */
+        .floating-card {
+            animation: floatCard 6s infinite ease-in-out;
+        }
+        
+        @keyframes floatCard {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+        }
+        
+        /* Logo spin on hover */
+        .logo-spin {
+            transition: transform 0.5s ease;
+        }
+        
+        .logo-spin:hover {
+            transform: rotate(180deg) scale(1.1);
+        }
+        
+        /* Status badge */
+        .status-badge {
+            background: linear-gradient(135deg, #10b981, #059669);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.8;
+                transform: scale(1.05);
+            }
+        }
+    </style>
+    <script src="capacitor.js"></script>
+    <script src="config.js"></script>
+    <script>
+      
+    </script>
+</head>
+<body class="relative">
+    <div class="particles" id="particles"></div>
+    
+    <div class="relative z-10 container mx-auto px-4 py-8">
+        <div class="glass-card p-6 mb-8 floating-card">
+            <div class="flex flex-wrap justify-between items-center gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="bg-gradient-to-br from-indigo-500 to-purple-600 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg logo-spin cursor-pointer">
+                        <i class="fas fa-motorcycle text-white text-3xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-3xl font-black gradient-text">نظام إدارة التوصيل الذكي</h1>
+                        <p class="text-gray-600 mt-1">منصة متكاملة لإدارة المطاعم والمندوبين والطلبات</p>
+                    </div>
+                </div>
+                <div>
+                    <a href="login.html" id="mainLoginBtn" class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-3 rounded-2xl font-bold hover:shadow-lg transition-all hover:scale-105 neon-btn">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>تسجيل الدخول</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="glass-card p-4 text-center hover:scale-105 transition-all cursor-pointer" onclick="window.location.href='test-delivery.html'">
+                <i class="fas fa-chart-line text-3xl text-indigo-600 mb-2"></i>
+                <p class="text-2xl font-bold gradient-text" id="totalOrders">0</p>
+                <p class="text-sm text-gray-600">إجمالي الطلبات</p>
+            </div>
+            <div class="glass-card p-4 text-center hover:scale-105 transition-all cursor-pointer" onclick="window.location.href='delivery.html'">
+                <i class="fas fa-truck text-3xl text-purple-600 mb-2"></i>
+                <p class="text-2xl font-bold gradient-text" id="activeTrips">0</p>
+                <p class="text-sm text-gray-600">رحلات نشطة</p>
+            </div>
+            <div class="glass-card p-4 text-center hover:scale-105 transition-all cursor-pointer" onclick="window.location.href='all.html?filter=delivering'">
+                <i class="fas fa-hourglass-half text-3xl text-orange-600 mb-2"></i>
+                <p class="text-2xl font-bold gradient-text" id="pendingOrders">0</p>
+                <p class="text-sm text-gray-600">طلبات قيد التوصيل</p>
+            </div>
+            <div class="glass-card p-4 text-center hover:scale-105 transition-all cursor-pointer" onclick="window.location.href='viewemp.html'">
+                <i class="fas fa-users text-3xl text-green-600 mb-2"></i>
+                <p class="text-2xl font-bold gradient-text" id="activeDrivers">0</p>
+                <p class="text-sm text-gray-600">مندوبين نشطين</p>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <div class="relative dropdown">
+                <div class="glass-card p-6 cursor-pointer hover:shadow-xl transition-all group">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="bg-gradient-to-br from-indigo-500 to-purple-600 w-14 h-14 rounded-xl flex items-center justify-center mb-3">
+                                <i class="fas fa-user-shield text-white text-2xl"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">إدارة المديرين</h3>
+                            <p class="text-gray-500 text-sm">إضافة وتعديل المديرين والصلاحيات</p>
+                        </div>
+                        <i class="fas fa-chevron-down text-gray-400 group-hover:transform group-hover:rotate-180 transition-transform"></i>
+                    </div>
+                </div>
+                <div class="dropdown-content top-full mt-2 right-0">
+                    <a href="addemp.html">
+                        <i class="fas fa-user-plus text-indigo-600 icon-bounce"></i>
+                        <span>إضافة موظف جديد</span>
+                    </a>
+                    <a href="admin.html">
+                        <i class="fas fa-crown text-purple-600 icon-bounce"></i>
+                        <span>لوحة تحكم المدير</span>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="relative dropdown">
+                <div class="glass-card p-6 cursor-pointer hover:shadow-xl transition-all group">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="bg-gradient-to-br from-purple-500 to-pink-600 w-14 h-14 rounded-xl flex items-center justify-center mb-3">
+                                <i class="fas fa-tasks text-white text-2xl"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">الإدارة المتقدمة</h3>
+                            <p class="text-gray-500 text-sm">إدارة الماركات والمناطق والرحلات</p>
+                        </div>
+                        <i class="fas fa-chevron-down text-gray-400 group-hover:transform group-hover:rotate-180 transition-transform"></i>
+                    </div>
+                </div>
+                <div class="dropdown-content top-full mt-2 right-0">
+                    <a href="brand.html">
+                        <i class="fas fa-trademark text-indigo-600 icon-bounce"></i>
+                        <span>إدارة الماركات</span>
+                    </a>
+                    <a href="zones.html">
+                        <i class="fas fa-map-marker-alt text-purple-600 icon-bounce"></i>
+                        <span>إدارة المناطق</span>
+                    </a>
+                    <a href="areas.html">
+                        <i class="fas fa-location-dot text-pink-600 icon-bounce"></i>
+                        <span>إدارة الأحياء</span>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="glass-card p-6 cursor-pointer hover:shadow-xl transition-all hover:scale-105" onclick="window.location.href='trips.html'">
+                <div class="bg-gradient-to-br from-green-500 to-emerald-600 w-14 h-14 rounded-xl flex items-center justify-center mb-3">
+                    <i class="fas fa-truck-fast text-white text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">إدارة الرحلات</h3>
+                <p class="text-gray-500 text-sm">متابعة وتتبع جميع الرحلات والتوصيلات</p>
+            </div>
+            
+            <div class="glass-card p-6 cursor-pointer hover:shadow-xl transition-all hover:scale-105" onclick="window.location.href='delivery.html'">
+                <div class="bg-gradient-to-br from-red-500 to-orange-600 w-14 h-14 rounded-xl flex items-center justify-center mb-3">
+                    <i class="fas fa-map-marked-alt text-white text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">الخريطة التفاعلية</h3>
+                <p class="text-gray-500 text-sm">تتبع المندوبين والطلبات على الخريطة</p>
+            </div>
+            
+            <div class="glass-card p-6 cursor-pointer hover:shadow-xl transition-all hover:scale-105" onclick="window.location.href='all.html'">
+                <div class="bg-gradient-to-br from-blue-500 to-cyan-600 w-14 h-14 rounded-xl flex items-center justify-center mb-3">
+                    <i class="fas fa-clipboard-list text-white text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">جميع الطلبات</h3>
+                <p class="text-gray-500 text-sm">عرض وإدارة جميع الطلبات في النظام</p>
+            </div>
+            
+            <div class="glass-card p-6 cursor-pointer hover:shadow-xl transition-all hover:scale-105" onclick="window.location.href='zones.html'">
+                <div class="bg-gradient-to-br from-yellow-500 to-amber-600 w-14 h-14 rounded-xl flex items-center justify-center mb-3">
+                    <i class="fas fa-layer-group text-white text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">المناطق الرئيسية</h3>
+                <p class="text-gray-500 text-sm">إدارة المناطق والتوزيع الجغرافي</p>
+            </div>
+        </div>
+        
+        <div class="glass-card p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold gradient-text">📊 النشاطات الأخيرة</h2>
+                <i class="fas fa-sync-alt text-gray-400 cursor-pointer hover:rotate-180 transition-transform" onclick="refreshData()"></i>
+            </div>
+            <div id="recentActivity" class="space-y-3">
+                <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <i class="fas fa-circle-info text-indigo-600"></i>
+                    <span class="text-sm text-gray-600">جاري تحميل النشاطات...</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-8 text-center text-white text-sm opacity-80">
+            <p>© 2026 نظام إدارة التوصيل الذكي - جميع الحقوق محفوظة</p>
+            <p class="mt-1">نسخة 1.0.0</p>
+        </div>
+    </div>
+    
+    <script>
+        // 🚀 تحديد الدومين الرئيسي للسيرفر الخاص بك من ملف الـ config المشترك لعدم حدوث توجيهات عشوائية
+        const API_BASE_URL = window.CONFIG && window.CONFIG.API_URL ? window.CONFIG.API_URL : 'https://YOUR-CLOUDFLARE-OR-SERVER-URL.com';
+
+        // Generate floating particles
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            const particleCount = 30; // تقليل العدد قليلاً لتحسين أداء الموبايل وضمان سلاسة الانيميشن
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+                const size = Math.random() * 8 + 2;
+                particle.style.width = size + 'px';
+                particle.style.height = size + 'px';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                particle.style.animationDuration = Math.random() * 15 + 10 + 's';
+                particlesContainer.appendChild(particle);
+            }
+        }
+        
+        // Load dashboard stats
+        async function loadStats() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    setDemoStats();
+                    return;
+                }
+                
+                // 🛠️ تم التعديل: استدعاء الرابط المطلق للسيرفر مباشرة لمنع كاباسيتور من البحث محلياً
+                const response = await fetch(`${API_BASE_URL}/api/dashboard/stats`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('totalOrders').innerHTML = data.totalOrders || '0';
+                    document.getElementById('activeTrips').innerHTML = data.activeTrips || '0';
+                    document.getElementById('pendingOrders').innerHTML = data.pendingOrders || '0';
+                    document.getElementById('activeDrivers').innerHTML = data.activeDrivers || '0';
+                } else {
+                    setDemoStats();
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                setDemoStats();
+            }
+        }
+
+        function setDemoStats() {
+            document.getElementById('totalOrders').innerHTML = '1,234';
+            document.getElementById('activeTrips').innerHTML = '12';
+            document.getElementById('pendingOrders').innerHTML = '45';
+            document.getElementById('activeDrivers').innerHTML = '23';
+        }
+        
+        // Load recent activity
+        async function loadRecentActivity() {
+            const activityContainer = document.getElementById('recentActivity');
+            
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    setDemoActivity();
+                    return;
+                }
+                
+                // 🛠️ تم التعديل: استخدام رابط السيرفر الكامل
+                const response = await fetch(`${API_BASE_URL}/api/dashboard/recent-activity`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                
+                if (data.success && data.activities && data.activities.length > 0) {
+                    activityContainer.innerHTML = data.activities.map(activity => `
+                        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
+                            <i class="${activity.icon} ${activity.iconColor}"></i>
+                            <div class="flex-1">
+                                <p class="text-sm font-semibold">${activity.title}</p>
+                                <p class="text-xs text-gray-500">${activity.time}</p>
+                            </div>
+                            <span class="text-xs ${activity.badgeColor} px-2 py-1 rounded">${activity.type}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    activityContainer.innerHTML = `
+                        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                            <i class="fas fa-info-circle text-gray-400"></i>
+                            <span class="text-sm text-gray-500">لا توجد نشاطات حديثة</span>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading activity:', error);
+                setDemoActivity();
+            }
+        }
+
+        function setDemoActivity() {
+            const activityContainer = document.getElementById('recentActivity');
+            activityContainer.innerHTML = `
+                <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
+                    <i class="fas fa-plus-circle text-green-600"></i>
+                    <div class="flex-1">
+                        <p class="text-sm font-semibold">تم إضافة طلب جديد #ORD-001</p>
+                        <p class="text-xs text-gray-500">منذ 5 دقائق</p>
+                    </div>
+                    <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">جديد</span>
+                </div>
+                <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
+                    <i class="fas fa-user-check text-blue-600"></i>
+                    <div class="flex-1">
+                        <p class="text-sm font-semibold">تسجيل مندوب جديد</p>
+                        <p class="text-xs text-gray-500">منذ 15 دقيقة</p>
+                    </div>
+                    <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">مستخدم</span>
+                </div>
+            `;
+        }
+        
+        // Refresh all data
+        function refreshData() {
+            loadStats();
+            loadRecentActivity();
+            showToast('تم تحديث البيانات');
+        }
+        
+        // Toast notification
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-5 right-5 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-bounce';
+            toast.innerHTML = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        // Check login status and update UI
+        function checkLoginStatus() {
+            const token = localStorage.getItem('auth_token');
+            const loginBtn = document.getElementById('mainLoginBtn');
+            
+            if (token && loginBtn) {
+                loginBtn.innerHTML = '<i class="fas fa-user-circle"></i><span>الملف الشخصي</span>';
+                loginBtn.href = 'delivery.html'; // تم إزالة الـ (/) لتبقي تصفح محلي نسبي
+            }
+        }
+        //hi
+        // Initialize
+        createParticles();
+        loadStats();
+        loadRecentActivity();
+        checkLoginStatus();
+        
+        // Auto refresh every 30 seconds
+        setInterval(() => {
+            loadStats();
+            loadRecentActivity();
+        }, 30000);
+
+        // كود جعل زر رجوع الموبايل يعود للصفحة السابقة بدلاً من الخروج من التطبيق
+        document.addEventListener('deviceready', () => {
+            if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+                const AppPlugin = window.Capacitor.Plugins.App;
+                
+                AppPlugin.addListener('backButton', () => {
+                    if (window.history.length > 1) {
+                        window.history.back();
+                    } else {
+                        AppPlugin.exitApp(); 
+                    }
+                });
+            }
+        });
+
+        async function initializeAppFeatures() {
+    
+    if (window.Capacitor && window.Capacitor.Plugins) {
+        console.log("[CAPACITOR] 🛠️ بيئة عمل النيتف نشطة. جاري إعداد الخصائص...");
+        const { PushNotifications, Geolocation } = window.Capacitor.Plugins;
+
+        // 1. طلب تفعيل صلاحية الموقع الجغرافي (GPS)
+        // [كود اللوكيشن الحالي كما هو...]
+
+        // 2. طلب صلاحية الإشعارات وبناء قناة الصوت المخصصة للمناديب
+        if (PushNotifications) {
+            try {
+                // 👇 هنا يوضع كود إنشاء القناة المخصصة مع الخصائص الكاملة
+                await PushNotifications.createChannel({
+                    id: 'delivery_orders', // نفس الـ ID المستخدم بالسيرفر تماماً
+                    name: 'طلبات التوصيل الجديدة',
+                    description: 'قناة لاستقبال أوردرات زون موف أون',
+                    sound: 'delivery_sound.mp3', // تأكد من إضافة الامتداد أو حذفه حسب تجربة إصدار الأندرويد (الأفضل .mp3 في كاباسيتور)
+                    importance: 5, // أعلى درجة أهمية لظهور الإشعار كـ Heads-up (منبثق علوي)
+                    visibility: 1,
+                    vibration: true
+                });
+                console.log('✅ تم إنشاء قناة الإشعارات بالصوت المخصص بنجاح داخل الهاتف');
+
+                // بعد إنشاء القناة، نطلب صلاحية الاستقبال والتسجيل في FCM
+                let permStatus = await PushNotifications.checkPermissions();
+                if (permStatus.receive === 'prompt') {
+                    permStatus = await PushNotifications.requestPermissions();
+                }
+
+                if (permStatus.receive === 'granted') {
+                    await PushNotifications.register();
+                    // [باقي كود الـ listener لاستقبال التوكن...]
+                }
+            } catch (err) {
+                console.error("[FCM] ❌ خطأ في إعداد الإشعارات بالهاتف: ", err);
+            }
+        }
+    } else {
+        // بيئة المتصفح العادية...
+    }
+}
+    </script>
+</body>
+</html>

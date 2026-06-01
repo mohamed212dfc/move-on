@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>صفحة المندوب - اختبار التتبع والإشعارات</title>
+    <style>
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f4f8; padding: 20px; text-align: center; margin: 0; }
+        .panel { background: white; max-width: 500px; margin: 20px auto; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
+        .status { color: #4f46e5; font-weight: bold; margin: 15px 0; font-size: 18px;}
+        .log-box { background: #1e293b; color: #34d399; padding: 15px; border-radius: 8px; text-align: right; font-family: monospace; overflow-y: auto; height: 15px; font-size: 12px; line-height: 1.6; height: 150px; }
+        .btn-test { background: #10b981; color: white; border: none; padding: 12px 20px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 15px; width: 100%; display: block; }
+        .btn-test:hover { background: #059669; }
+        .warning-banner { background: #fef2f2; border: 1px solid #fee2e2; color: #ef4444; padding: 10px; border-radius: 6px; margin-bottom: 15px; display: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="panel">
+    <h2>شاشة المندوب الاختبارية 🚚</h2>
+    <p>مُعرّف المندوب الحالي: <span id="userIdDisplay" style="font-weight: bold; color: #ef4444;">--</span></p>
+    
+    <button class="btn-test" id="triggerNotifBtn">🚀 اختبر إرسال إشعار بالصوت المخصص فوراً</button>
+
+    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+    
+    <div class="warning-banner" id="permissionWarning">⚠️ تنبيه: صلاحية الموقع مطلوبة لإستقبال الطلبات.</div>
+    <div class="status" id="trackingStatus">جاري تشغيل الرادار...</div>
+    
+    <h3>سجل الحركة والإشعارات:</h3>
+    <div class="log-box" id="logBox"></div>
+</div>
+
+<script src="config.js"></script>
+<script>
+    const SERVER_URL = (typeof CONFIG !== 'undefined' && CONFIG.SERVER_URL) ? CONFIG.SERVER_URL : "https://writes-detailed-achievement-ready.trycloudflare.com";
+    const userId = localStorage.getItem('employee_id') || "1"; // افتراضياً 1 إذا لم يسجل
+    document.getElementById('userIdDisplay').innerText = userId;
+    
+    const logBox = document.getElementById('logBox');
+    const trackingStatus = document.getElementById('trackingStatus');
+
+    function logToScreen(message) {
+        const time = new Date().toLocaleTimeString();
+        logBox.innerHTML += `[${time}] ${message}<br>`;
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    // ==========================================
+    // 1. نظام استقبال الإشعارات الفوري والتطبيق مفتوح
+    // ==========================================
+    async function setupNotificationRadar() {
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications) {
+            const { PushNotifications } = window.Capacitor.Plugins;
+            
+            try {
+                // إنشاء القناة الجديدة باسم محدث ومختلف لكسر كاش الأندرويد تماماً
+                await PushNotifications.createChannel({
+                    id: 'delivery_orders_v3', 
+                    name: 'طلبات التوصيل الجديدة V3',
+                    description: 'رادار إشعارات الأوردرات الصوتية الصارمة للمناديب',
+                    sound: 'delivery_sound.mp3', // مع الامتداد لضمان التعرف عليه بكاباسيتور
+                    importance: 5, 
+                    visibility: 1,
+                    vibration: true
+                });
+                logToScreen("📡 تم تحديث وبناء القناة الصوتية المخصصة V3.");
+
+                // تعديل خصائص الاستقبال اللحظي ليعمل والتطبيق مفتوح في الوجه (Foreground)
+                if (typeof PushNotifications.createChannel === 'function') {
+                    // جعل كاباسيتور يعرض الإشعار ويصدر الصوت حتى لو كنت واقف داخل الصفحة
+                    await window.Capacitor.Plugins.PushNotifications.addListener('pushNotificationReceived', (notification) => {
+                        logToScreen(`🔔 إشعار واصل والتطبيق مفتوح: ${notification.title}`);
+                        console.log('Foreground notification context:', notification);
+                    });
+                }
+
+                // تسجيل التوكن في الـ LocalStorage لإستخدامه في الإرسال
+                let permStatus = await PushNotifications.checkPermissions();
+                if (permStatus.receive === 'prompt') permStatus = await PushNotifications.requestPermissions();
+                
+                if (permStatus.receive === 'granted') {
+                    await PushNotifications.register();
+                    await PushNotifications.addListener('registration', (token) => {
+                        localStorage.setItem('real_fcm_token', token.value);
+                        logToScreen(`✅ توكن الـ FCM نشط وجاهز للاختبار.`);
+                    });
+                }
+            } catch (err) {
+                logToScreen(`❌ خطأ إعداد الإشعارات: ${err.message}`);
+            }
+        }
+    }
+
+    // ==========================================
+    // 2. زر اختبار الإرسال الفوري للسيرفر
+    // ==========================================
+    document.getElementById('triggerNotifBtn').addEventListener('click', async () => {
+        const currentToken = localStorage.getItem('real_fcm_token');
+        if (!currentToken) {
+            alert("خطأ: لم يتم توليد توكن FCM للهاتف بعد، تأكد من إعطاء صلاحية الإشعارات.");
+            return;
+        }
+
+        logToScreen("🔄 جاري إرسال طلب تفعيل الإشعار للسيرفر...");
+        
+        try {
+            // هنا نقوم بعمل طلب POST لإندبوينت السيرفر المسؤول عن إرسال الإشعار بالصوت المخصص
+            // تأكد من مطابقة الـ Route في السيرفر الخاص بك (مثال: /api/orders/test-notif)
+            const response = await fetch(`${SERVER_URL}/api/orders/test-notif`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    fcm_token: currentToken,
+                    user_id: userId 
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                logToScreen("🚀 خرج الطلب بنجاح. انتظر وصول الإشعار والصوت الآن!");
+            } else {
+                logToScreen(`⚠️ رد السيرفر: ${result.error}`);
+            }
+        } catch (err) {
+            logToScreen("❌ فشل الاتصال بالسيرفر لإطلاق الإشعار.");
+        }
+    });
+
+    // تشغيل الأنظمة فور فتح الصفحة
+    document.addEventListener('DOMContentLoaded', () => {
+        setupNotificationRadar();
+        // [هنا يعمل نظام التتبع الـ GPS التلقائي الحالى دون أي تعارض]
+    });
+</script>
+</body>
+</html>

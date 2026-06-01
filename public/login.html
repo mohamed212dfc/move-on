@@ -1,0 +1,365 @@
+ <!DOCTYPE html>
+
+<html lang="ar" dir="rtl">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>تسجيل الدخول - المنظومة الذكية</title>
+
+    <style>
+
+        :root {
+
+            --primary: #4f46e5;
+
+            --primary-hover: #4338ca;
+
+            --bg-main: #f1f5f9;
+
+            --card-bg: #ffffff;
+
+            --text-title: #1e293b;
+
+            --text-muted: #64748b;
+
+            --border-color: #cbd5e1;
+
+            --danger: #ef4444;
+
+        }
+
+
+
+        body {
+
+            font-family: 'Segoe UI', system-ui, sans-serif;
+
+            background-color: var(--bg-main);
+
+            margin: 0;
+
+            height: 100vh;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            padding: 20px;
+
+            box-sizing: border-box;
+
+        }
+
+
+
+        .login-card {
+
+            width: 100%;
+
+            max-width: 420px;
+
+            background: var(--card-bg);
+
+            padding: 40px 30px;
+
+            border-radius: 16px;
+
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+
+            border: 1px solid #e2e8f0;
+
+            text-align: center;
+
+        }
+
+
+
+        .logo-placeholder { font-size: 42px; margin-bottom: 10px; }
+
+        h2 { margin: 0 0 5px 0; color: var(--text-title); font-size: 22px; font-weight: 700; }
+
+        .subtitle { color: var(--text-muted); font-size: 13px; margin: 0 0 30px 0; }
+
+
+
+        .form-group { text-align: right; margin-bottom: 20px; }
+
+        label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #475569; }
+
+        input {
+
+            width: 100%; padding: 12px 14px; border: 1px solid var(--border-color);
+
+            border-radius: 8px; background: #f8fafc; font-size: 15px;
+
+            box-sizing: border-box;
+
+        }
+
+        input:focus {
+
+            outline: none; border-color: var(--primary); background: #ffffff;
+
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+
+        }
+
+
+
+        .error-message {
+
+            color: var(--danger); font-size: 13px; margin-bottom: 15px;
+
+            text-align: right; display: none; background: #fef2f2;
+
+            padding: 8px 12px; border-radius: 6px; border: 1px solid #fee2e2;
+
+        }
+
+
+
+        .btn-login {
+
+            background: var(--primary); color: white; width: 100%;
+
+            border: none; padding: 14px; border-radius: 8px;
+
+            font-weight: bold; font-size: 16px; cursor: pointer;
+
+            margin-top: 10px;
+
+        }
+
+        .btn-login:hover { background: var(--primary-hover); }
+
+    </style>
+
+</head>
+
+<body>
+
+
+
+<div class="login-card">
+
+    <div class="logo-placeholder">🚀</div>
+
+    <h2>مرحباً بك مجدداً</h2>
+
+    <p class="subtitle">قم بتسجيل الدخول للوصول إلى لوحة التحكم الخاصة بك</p>
+
+
+
+    <div class="error-message" id="loginError">خطأ في اسم المستخدم أو كلمة المرور.</div>
+
+
+
+    <form id="loginForm">
+
+        <div class="form-group">
+
+            <label for="username">معرّف الدخول (User ID):</label>
+
+            <input type="text" id="username" placeholder="001xxxxx أو rest_xxxx" required>
+
+        </div>
+
+
+
+        <div class="form-group">
+
+            <label for="password">كلمة المرور (Password):</label>
+
+            <input type="password" id="password" placeholder="••••••••" required>
+
+        </div>
+
+
+
+        <button type="submit" class="btn-login">تسجيل الدخول</button>
+
+    </form>
+
+</div>
+
+
+
+<script src="config.js"></script>
+
+<script>
+
+    const SERVER_URL = "http://192.168.1.2:80";
+
+    let activeNotificationToken = null;
+
+
+
+    window.addEventListener('DOMContentLoaded', () => {
+
+        console.log("[INIT] 📱 الفحص الأولي لبيئة التشغيل...");
+
+        setupNotificationSystem();
+
+    });
+
+
+async function setupNotificationSystem() {
+    // التحقق الذكي من وجود بيئة Capacitor دون استدعاء سكريبت خارجي مسبب للـ 404
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications) {
+        console.log("[FCM] 🛠️ بيئة عمل Capacitor نشطة داخل الـ APK. جاري الإعداد...");
+        
+        try {
+            const { PushNotifications } = window.Capacitor.Plugins;
+
+            // 🔥 خطوة الإنقاذ: إنشاء القناة الصوتية المخصصة وربطها بالملف الموجود في مجلد raw
+            await PushNotifications.createChannel({
+                id: 'delivery_orders',        // نفس الـ ID المكتوب في السيرفر حرفياً
+                name: 'طلبات التوصيل الجديدة', // الاسم الذي سيظهر للمندوب في إعدادات الهاتف
+                description: 'تنبيهات صوتية قوية عند استقبال أوردرات جديدة للمناديب',
+                sound: 'delivery_sound.mp3',   // اسم ملف الصوت الموجود في مجلد raw (بإضافة .mp3 لـ Capacitor)
+                importance: 5,                // أعلى درجة أهمية (High/Max) لظهور الإشعار منبثقاً من الأعلى
+                visibility: 1,
+                vibration: true               // تفعيل الاهتزاز مع الصوت لضمان انتباه المندوب
+            });
+            console.log("[FCM] ✅ تم إنشاء قناة الإشعارات الصوتية المخصصة (delivery_orders) بنجاح داخل الهاتف");
+
+            // بعد بناء القناة بنجاح، نبدأ في فحص الصلاحيات والتسجيل كالمعتاد
+            let permStatus = await PushNotifications.checkPermissions();
+            if (permStatus.receive === 'prompt') {
+                permStatus = await PushNotifications.requestPermissions();
+            }
+
+            if (permStatus.receive === 'granted') {
+                await PushNotifications.register();
+
+                await PushNotifications.addListener('registration', (token) => {
+                    activeNotificationToken = token.value;
+                    localStorage.setItem('real_fcm_token', token.value);
+                    console.log(`[FCM] ✅ تم استقبال التوكن بنجاح: ${token.value}`);
+                });
+            }
+        } catch (err) {
+            console.error("[FCM] ❌ خطأ في إعداد الإشعارات بالهاتف: ", err);
+        }
+    } else {
+        console.log("[WEB] 🌐 يعمل من متصفح عادي. إنشاء توكن افتراضي محمي...");
+        if ('Notification' in window) {
+            const webPermission = await Notification.requestPermission();
+            if (webPermission === 'granted') {
+                activeNotificationToken = 'web_demo_' + Math.random().toString(36).substring(2, 10);
+                localStorage.setItem('notif_token', activeNotificationToken);
+                console.log(`[WEB] ✅ توكن تجريبي نشط: ${activeNotificationToken}`);
+            }
+        }
+    }
+}
+
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+
+        e.preventDefault();
+
+       
+
+        const username = document.getElementById('username').value.trim();
+
+        const password = document.getElementById('password').value;
+
+        const errorDiv = document.getElementById('loginError');
+
+       
+
+        errorDiv.style.display = 'none';
+
+        console.log(`[AUTH] 🔄 إرسال طلب الدخول إلى: ${SERVER_URL}`);
+
+
+
+        try {
+
+            const response = await fetch(`${SERVER_URL}/api/auth/login`, {
+
+                method: 'POST',
+
+                headers: { 'Content-Type': 'application/json' },
+
+                body: JSON.stringify({
+
+                    username,
+
+                    password,
+
+                    notification_token: activeNotificationToken
+
+                })
+
+            });
+
+
+
+            const result = await response.json();
+
+
+
+            if (result.success && result.token) {
+
+                localStorage.setItem('auth_token', result.token);
+
+                if (result.user_id) localStorage.setItem('employee_id', result.user_id);
+
+               
+
+                console.log(`[AUTH] ✅ تم الدخول بنجاح. التوجيه جاري...`);
+
+
+
+                if (username.startsWith('001')) {
+
+                    window.location.href = '/delivery.html'; // التوجيه لصفحة المندوب المثبتة أدناه
+
+                } else if (username.startsWith('rest_')) {
+
+                    window.location.href = '/rest.html';
+
+                } else if (username.startsWith('brand_')) {
+
+                    window.location.href = '/brand.html';
+
+                } else {
+
+                    window.location.href = '/mange.html';
+
+                }
+
+            } else {
+
+                errorDiv.innerText = result.error || "بيانات الدخول غير صحيحة";
+
+                errorDiv.style.display = 'block';
+
+            }
+
+        } catch (err) {
+
+            console.error("[AUTH] ❌ خطأ اتصال:", err);
+
+            errorDiv.innerText = "حدث خطأ في الاتصال بالسيرفر التابع لـ Cloudflare.";
+
+            errorDiv.style.display = 'block';
+
+        }
+
+    });
+
+</script>
+
+</body>
+
+</html> 
+

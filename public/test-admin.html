@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم الأدمن - اختبار الإشعارات</title>
+    <style>
+        body { font-family: sans-serif; background: #f8fafc; padding: 30px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #cbd5e1; padding: 12px; text-align: right; font-size: 14px;}
+        th { background: #4f46e5; color: white; }
+        tr:hover { background: #f1f5f9; }
+        .btn-action { background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold;}
+        .btn-action:hover { background: #059669; }
+        .console-box { background: #0f172a; color: #38bdf8; padding: 15px; border-radius: 8px; margin-top: 20px; font-family: monospace; font-size: 13px;}
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>لوحة تحكم الإدارة والسيطرة (الاختبار الفوري) 🔐</h2>
+    <p>اختر مستخدم من جدول الـ Tokens لإرسال إشعار فوري وتجربة انتقال البيانات الدقيقة:</p>
+    
+    <button onclick="loadActiveUsers()" style="padding: 10px 15px; background: #4f46e5; color: white; border:none; border-radius:6px; cursor:pointer;">🔄 تحديث قائمة الـ Tokens من الداتا بيز</button>
+
+    <table>
+        <thead>
+            <tr>
+                <th>User ID</th>
+                <th>توكن تسجيل الدخول (token)</th>
+                <th>توكن الإشعارات (notification_token)</th>
+                <th>الإجراء</th>
+            </tr>
+        </thead>
+        <tbody id="usersTableBody">
+            </tbody>
+    </table>
+
+    <h3>مخرجات السيرفر للاختبار اللحظي:</h3>
+    <div class="console-box" id="adminConsole">انقر فوق "إرسال إشعار" لرؤية النتيجة هنا...</div>
+</div>
+
+<script>
+    async function loadActiveUsers() {
+        const tbody = document.getElementById('usersTableBody');
+        tbody.innerHTML = '<tr><td colspan="4">جاري تحميل البيانات...</td></tr>';
+        
+        try {
+            const res = await fetch('/api/admin/active-tokens');
+            const data = await res.json();
+            
+            if(data.success && data.users.length > 0) {
+                tbody.innerHTML = '';
+                data.users.forEach(user => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><b>${user.user_id}</b></td>
+                            <td style="color:#64748b; font-size:12px;">${user.token}</td>
+                            <td style="color:#2563eb; font-size:12px;">${user.notification_token || '⚠️ لم يُمنح بعد'}</td>
+                            <td>
+                                <button class="btn-action" onclick="sendTestNotification(${user.user_id}, '${user.token}', '${user.notification_token}')">🔔 إرسال إشعار</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4">لا توجد سجلات توكنز نشطة حالياً بالداتا بيز.</td></tr>';
+            }
+        } catch (err) {
+            tbody.innerHTML = '<tr><td colspan="4">حدث خطأ أثناء جلب البيانات من السيرفر.</td></tr>';
+        }
+    }
+
+    async function sendTestNotification(userId, token, notifToken) {
+        const consoleBox = document.getElementById('adminConsole');
+        consoleBox.innerText = `جاري المعالجة والإرسال للمستخدم ${userId}...`;
+
+        try {
+            const res = await fetch('/api/admin/send-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: userId,
+                    token: token,
+                    notification_token: notifToken,
+                    message: "تنبيه إداري: لديك طلب جديد جاهز للاستلام فوراً!"
+                })
+            });
+            
+            const result = await res.json();
+            if(result.success) {
+                consoleBox.innerHTML = `✅ <b>استجابة السيرفر ناجحة:</b><br><pre>${JSON.stringify(result.debug_info, null, 2)}</pre>`;
+                
+                // إظهار إشعار حقيقي في متصفح الأدمن أيضاً للتأكيد البصري
+                if (Notification.permission === "granted") {
+                    new Notification("تحديث النظام", { body: `تم اختبار إرسال التوكن بنجاح للـ ID: ${userId}` });
+                }
+            }
+        } catch (err) {
+            consoleBox.innerText = `❌ خطأ في الاتصال بالـ API الخارجي.`;
+        }
+    }
+
+    // جلب تلقائي عند فتح الصفحة لأول مرة
+    window.onload = loadActiveUsers;
+</script>
+</body>
+</html>

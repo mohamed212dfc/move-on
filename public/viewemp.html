@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة واستعراض قوة الموظفين</title>
+    <style>
+        :root {
+            --primary: #4f46e5; --primary-hover: #4338ca;
+            --danger: #ef4444; --danger-hover: #dc2626;
+            --success: #10b981; --bg-main: #f1f5f9;
+            --card-bg: #ffffff; --text-title: #1e293b;
+            --text-muted: #64748b; --border-color: #cbd5e1;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg-main); margin: 0; padding: 30px; color: var(--text-title); }
+        .container { max-width: 1200px; margin: 0 auto; background: var(--card-bg); padding: 30px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; }
+        
+        h2 { margin-top: 0; margin-bottom: 5px; font-weight: 700; }
+        p.subtitle { color: var(--text-muted); margin-top: 0; margin-bottom: 25px; font-size: 14px; }
+        
+        /* تصميم جدول الموظفين */
+        .table-responsive { overflow-x: auto; margin-top: 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
+        table { width: 100%; border-collapse: collapse; text-align: right; font-size: 14px; }
+        th { background-color: #f8fafc; color: #475569; padding: 14px; font-weight: 600; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        tr:hover { background-color: #f8fafc; }
+        
+        /* شارات الأدوار الوظيفية */
+        .badge { padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .badge-delivery { background: #e0f2fe; color: #0369a1; }
+        .badge-manager { background: #fef3c7; color: #b45309; }
+        .badge-admin { background: #e0e7ff; color: #4338ca; }
+        
+        .creds-text { font-family: monospace; font-weight: bold; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 13px; }
+        
+        /* أزرار التحكم */
+        .btn { padding: 6px 12px; font-size: 13px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .btn-edit { background: #e0e7ff; color: #4338ca; }
+        .btn-edit:hover { background: #c7d2fe; }
+        .btn-submit { background: var(--primary); color: white; width: 100%; padding: 12px; font-size: 15px; border-radius: 8px; margin-top: 15px; }
+        .btn-submit:hover { background: var(--primary-hover); }
+        
+        /* المودال المنبثق للتعديل */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 999; opacity: 0; visibility: hidden; transition: 0.3s; }
+        .modal-overlay.open { opacity: 1; visibility: visible; }
+        .modal-content { background: white; padding: 25px; border-radius: 16px; width: 100%; max-width: 500px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); position: relative; }
+        .close-modal-btn { position: absolute; top: 15px; left: 15px; background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted); }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #475569; }
+        input, select { width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; background: #f8fafc; font-size: 14px; }
+        input:focus, select:focus { outline: none; border-color: var(--primary); background: #fff; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>👥 لوحة استعراض وإدارة طاقم العمل</h2>
+    <p class="subtitle">مراقبة الحسابات الحالية الفعالة بالنظام، وتحديث بيانات الموظفين أو تعديل نطاقاتهم التكليفية.</p>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>المعرف (ID)</th>
+                    <th>الاسم بالكامل</th>
+                    <th>رقم الهاتف</th>
+                    <th>الدور الوظيفي</th>
+                    <th>اسم المستخدم (User ID)</th>
+                    <th>كلمة المرور</th>
+                    <th>الزون المرتبط</th>
+                    <th>إجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="employeesTableBody">
+                <tr>
+                    <td colspan="8" style="text-align:center; color:var(--text-muted);">جاري سحب بيانات الموظفين وتحديث اللوحة...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal-overlay" id="editEmployeeModal">
+    <div class="modal-content">
+        <button class="close-modal-btn" onclick="closeEditModal()">✕</button>
+        <h3 style="margin-top:0; color:var(--primary); margin-bottom:20px;">🛠️ تعديل حساب وبيانات الموظف</h3>
+        
+        <form id="editEmployeeForm">
+            <input type="hidden" id="editEmpId">
+            
+            <div class="form-group">
+                <label>اسم الموظف:</label>
+                <input type="text" id="editEmpName" required>
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>رقم الهاتف:</label>
+                    <input type="tel" id="editEmpPhone" required>
+                </div>
+                <div class="form-group">
+                    <label>الدور الوظيفي:</label>
+                    <select id="editEmpRole" required>
+                        <option value="delivery">طيار (Delivery)</option>
+                        <option value="manager">مشرف (Manager)</option>
+                        <option value="administrator">مسؤول نظام (Admin)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group" style="background: #fffbeb; border: 1px dashed #fef3c7; padding: 10px; border-radius: 8px;">
+                <label style="color:#b45309;">تحديث كلمة المرور (اتركها كما هي إذا لم ترغب بالتغيير):</label>
+                <input type="text" id="editEmpPassword" placeholder="تحديث كلمة المرور الحالية">
+            </div>
+
+            <fieldset style="border:1px dashed var(--border-color); border-radius:10px; padding:15px; background:#fafafa;">
+                <legend style="font-size:12px; font-weight:bold; color:var(--primary); padding:0 5px;">📍 تعديل نطاق الزون الجغرافي</legend>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>المكان:</label>
+                        <select id="modalPlaceSelect" onchange="filterModalGroups()"><option value="">-- اختر المكان --</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>المجموعة:</label>
+                        <select id="modalGroupSelect" onchange="filterModalBlocks()"><option value="">-- اختر المجموعة --</option></select>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>القطاع:</label>
+                        <select id="modalBlockSelect" onchange="filterModalZones()"><option value="">-- اختر القطاع --</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label style="color:var(--success)">الزون الجديد:</label>
+                        <select id="modalZoneSelect"><option value="">-- اختر الزون --</option></select>
+                    </div>
+                </div>
+            </fieldset>
+
+            <button type="submit" class="btn btn-submit">حفظ وتحديث الحساب فرياً</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    let globalTreeData = {};
+    let allEmployees = [];
+
+    // 1. جلب البيانات الشجرية والموظفين عند تشغيل الواجهة
+    async function initializePage() {
+        try {
+            const resTree = await fetch('/api/admin/tree');
+            globalTreeData = await resTree.json();
+            
+            allEmployees = globalTreeData.employees || [];
+            renderEmployeesTable();
+            populateModalPlaces();
+        } catch (err) {
+            console.error("Error standard initial load:", err);
+        }
+    }
+
+    // 2. بناء وعرض جدول الموظفين ديناميكياً
+    function renderEmployeesTable() {
+        const tbody = document.getElementById('employeesTableBody');
+        tbody.innerHTML = "";
+
+        if (allEmployees.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-muted);">لا يوجد موظفين مسجلين حالياً بالنظام.</td></tr>`;
+            return;
+        }
+
+        allEmployees.forEach(emp => {
+            let roleBadge = `<span class="badge badge-delivery">طيار</span>`;
+            if(emp.role === 'manager') roleBadge = `<span class="badge badge-manager">مشرف</span>`;
+            if(emp.role === 'administrator') roleBadge = `<span class="badge badge-admin">مسؤول</span>`;
+
+            // إيجاد اسم الزون المرتبط بالموظف لعرضه تعريفياً
+            let zoneNameDisplay = "غير مرتبط بزون";
+            if(emp.zone_id && globalTreeData.zones) {
+                const matchedZone = globalTreeData.zones.find(z => z.id.toString() === emp.zone_id.toString());
+                if(matchedZone) zoneNameDisplay = `🗺️ ${matchedZone.name}`;
+            }
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>#${emp.id}</strong></td>
+                <td>${emp.name}</td>
+                <td>${emp.phone}</td>
+                <td>${roleBadge}</td>
+                <td><span class="creds-text">${emp.username || '---'}</span></td>
+                <td><span class="creds-text">${emp.password || '---'}</span></td>
+                <td><span style="font-size:13px; color:#475569;">${zoneNameDisplay}</span></td>
+                <td>
+                    <button class="btn btn-edit" onclick="openEditModal(${emp.id})">تعديل</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // 3. تغذية موديول التعديل ببيانات النطاقات الجغرافية
+    function populateModalPlaces() {
+        const sel = document.getElementById('modalPlaceSelect');
+        sel.innerHTML = '<option value="">-- اختر المكان --</option>';
+        if(globalTreeData.places) {
+            globalTreeData.places.forEach(p => { sel.innerHTML += `<option value="${p.id}">${p.name}</option>`; });
+        }
+    }
+
+    function filterModalGroups() {
+        const pId = parseInt(document.getElementById('modalPlaceSelect').value);
+        const groupSel = document.getElementById('modalGroupSelect');
+        groupSel.innerHTML = '<option value="">-- اختر المجموعة --</option>';
+        if(!isNaN(pId) && globalTreeData.groups) {
+            globalTreeData.groups.filter(g => g.place_id === pId).forEach(g => { groupSel.innerHTML += `<option value="${g.id}">${g.name}</option>`; });
+        }
+        filterModalBlocks();
+    }
+
+    function filterModalBlocks() {
+        const gId = parseInt(document.getElementById('modalGroupSelect').value);
+        const blockSel = document.getElementById('modalBlockSelect');
+        blockSel.innerHTML = '<option value="">-- اختر القطاع --</option>';
+        if(!isNaN(gId) && globalTreeData.blocks) {
+            globalTreeData.blocks.filter(b => b.group_id === gId).forEach(b => { blockSel.innerHTML += `<option value="${b.id}">${b.name}</option>`; });
+        }
+        filterModalZones();
+    }
+
+    function filterModalZones() {
+        const bId = parseInt(document.getElementById('modalBlockSelect').value);
+        const zoneSel = document.getElementById('modalZoneSelect');
+        zoneSel.innerHTML = '<option value="">-- اختر الزون --</option>';
+        if(!isNaN(bId) && globalTreeData.zones) {
+            globalTreeData.zones.filter(z => z.block_id === bId).forEach(z => { zoneSel.innerHTML += `<option value="${z.id}">${z.name}</option>`; });
+        }
+    }
+
+    // 4. فتح نافذة التعديل وتعبئة البيانات القديمة للموظف المختار
+    function openEditModal(empId) {
+        const emp = allEmployees.find(x => x.id === empId);
+        if(!emp) return;
+
+        document.getElementById('editEmpId').value = emp.id;
+        document.getElementById('editEmpName').value = emp.name;
+        document.getElementById('editEmpPhone').value = emp.phone;
+        document.getElementById('editEmpRole').value = emp.role;
+        document.getElementById('editEmpPassword').value = emp.password || "";
+
+        // محاولة تحديد التبعية الجغرافية القديمة للزون إن وجدت بالقوائم
+        if(emp.zone_id && globalTreeData.zones) {
+            const zone = globalTreeData.zones.find(z => z.id.toString() === emp.zone_id.toString());
+            if(zone) {
+                const block = globalTreeData.blocks.find(b => b.id === zone.block_id);
+                if(block) {
+                    const group = globalTreeData.groups.find(g => g.id === block.group_id);
+                    if(group) {
+                        document.getElementById('modalPlaceSelect').value = group.place_id;
+                        filterModalGroups();
+                        document.getElementById('modalGroupSelect').value = group.id;
+                        filterModalBlocks();
+                        document.getElementById('modalBlockSelect').value = block.id;
+                        filterModalZones();
+                        document.getElementById('modalZoneSelect').value = zone.id;
+                    }
+                }
+            }
+        } else {
+            document.getElementById('modalPlaceSelect').value = "";
+            filterModalGroups();
+        }
+
+        document.getElementById('editEmployeeModal').classList.add('open');
+    }
+
+    function closeEditModal() {
+        document.getElementById('editEmployeeModal').classList.remove('open');
+    }
+
+    // 5. إرسال طلب التحديث الفوري لحساب الموظف إلى السيرفر
+    document.getElementById('editEmployeeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const id = document.getElementById('editEmpId').value;
+        const name = document.getElementById('editEmpName').value;
+        const phone = document.getElementById('editEmpPhone').value;
+        const role = document.getElementById('editEmpRole').value;
+        const password = document.getElementById('editEmpPassword').value;
+        const zone_id = document.getElementById('modalZoneSelect').value || null;
+
+        const payload = { id, name, phone, role, password, zone_id };
+
+        try {
+            // ملاحظة: تأكد من ربط هذا المسار بـ API التحديث الفعلي لديمك UPDATE employees SET...
+            const res = await fetch('/api/admin/update-employee-full', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+
+            if(result.success) {
+                alert("تم تحديث بيانات وحساب الموظف بنجاح!");
+                closeEditModal();
+                initializePage(); // إعادة تحميل الجدول بالبيانات المحدثة
+            } else {
+                alert("فشل التحديث: " + result.error);
+            }
+        } catch (err) {
+            console.error("Error execution update:", err);
+            alert("حدث خطأ في الاتصال بالخادم.");
+        }
+    });
+
+    window.onload = initializePage;
+</script>
+</body>
+</html>
